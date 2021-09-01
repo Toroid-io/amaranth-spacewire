@@ -71,28 +71,20 @@ class DS_FSM(Elaboratable):
 
         with m.FSM() as main_fsm:
             with m.State("ErrorReset"):
-                m.d.comb += delay.i_start.eq(1)
-                m.d.sync += rx_reset.eq(0)
-                m.next = "ErrorResetDelay"
-            with m.State("ErrorResetDelay"):
                 with m.If(delay.o_half_elapsed):
-                    m.d.comb += [
-                        delay.i_reset.eq(1)
-                    ]
+                    m.d.comb += delay.i_reset.eq(1)
                     m.next = "ErrorWait"
+                with m.Else():
+                    m.d.comb += delay.i_start.eq(1)
+                    m.d.sync += rx_reset.eq(0)
             with m.State("ErrorWait"):
-                m.d.comb += [
-                    delay.i_start.eq(1)
-                ]
-                m.next = "ErrorWaitDelay"
-            with m.State("ErrorWaitDelay"):
                 with m.If(delay.o_elapsed == 1):
                     m.next = "Ready"
+                with m.Else():
+                    m.d.comb += delay.i_start.eq(1)
             with m.State("Ready"):
                 with m.If(self.i_link_enable == 1):
-                    m.d.sync += [
-                        tx_reset.eq(0)
-                    ]
+                    m.d.sync += tx_reset.eq(0)
                     m.next = "Started"
             with m.State("Started"):
                 with m.If(rx.o_got_null == 1):

@@ -24,8 +24,8 @@ class DSDelay(Elaboratable):
     def __init__(self, srcfreq, delay, strategy='at_least'):
         self.i_start = Signal()
         self.i_reset = Signal()
-        self.o_elapsed = Signal(reset=1)
-        self.o_half_elapsed = Signal(reset=1)
+        self.o_elapsed = Signal()
+        self.o_half_elapsed = Signal()
         self._ticks = _ticksForDelay(srcfreq, delay, strategy=strategy)
         self._strategy = strategy
 
@@ -42,17 +42,9 @@ class DSDelay(Elaboratable):
             with m.State("WAIT"):
                 with m.If((self.i_start & ~self.i_reset) == 1):
                     m.next = "DELAY"
-                    m.d.sync += [
-                        self.o_elapsed.eq(0),
-                        self.o_half_elapsed.eq(0)
-                    ]
             with m.State("DELAY"):
                 with m.If(self.i_reset == 1):
-                    m.d.sync += [
-                        counter.eq(0),
-                        self.o_half_elapsed.eq(1),
-                        self.o_elapsed.eq(1)
-                    ]
+                    m.d.sync += counter.eq(0)
                     m.next = "WAIT"
                 with m.Else():
                     with m.If(counter == (counter_half - 1)):
