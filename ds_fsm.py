@@ -69,6 +69,16 @@ class DS_FSM(Elaboratable):
             read_in_progress.eq(self.i_r_en & rx_fifo.r_rdy)
         ]
 
+        m.d.sync += [
+            tr.i_send_char.eq(0),
+            tr.i_send_fct.eq(0),
+            tr.i_send_eop.eq(0),
+            tr.i_send_eep.eq(0),
+            tr.i_send_esc.eq(0),
+            tx_fifo.r_en.eq(0),
+            rx_fifo.w_en.eq(0)
+        ]
+
         with m.FSM() as main_fsm:
             with m.State("ErrorReset"):
                 with m.If(delay.o_half_elapsed):
@@ -92,8 +102,6 @@ class DS_FSM(Elaboratable):
             with m.State("Connecting"):
                 with m.If(tx_can_send_fct):
                     m.d.sync += tr.i_send_fct.eq(1)
-                with m.Else():
-                    m.d.sync += tr.i_send_fct.eq(0)
 
                 with m.If(rx.o_got_fct == 1):
                     m.d.sync += tx_credit.eq(tx_credit + 8)
@@ -107,22 +115,12 @@ class DS_FSM(Elaboratable):
                         tr.i_send_char.eq(1),
                         tx_fifo.r_en.eq(1)
                     ]
-                with m.Else():
-                    m.d.sync += [
-                        tr.i_send_char.eq(0),
-                        tr.i_send_fct.eq(0),
-                        tx_fifo.r_en.eq(0)
-                    ]
 
                 #RX
                 with m.If(rx.o_got_data & ~rx_fifo.w_en):
                     m.d.sync += [
                         rx_fifo.w_en.eq(1),
                         rx_fifo.w_data.eq(rx.o_data_char)
-                    ]
-                with m.Else():
-                    m.d.sync += [
-                        rx_fifo.w_en.eq(0)
                     ]
 
         # Tokens and credit management
