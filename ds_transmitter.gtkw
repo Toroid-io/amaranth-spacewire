@@ -1,0 +1,11 @@
+[dumpfile] "/home/andres/sources/litex/litex-tests/6_DS_FSM_2/ds_transmitter.vcd"
+[dumpfile_size] 19637
+[treeopen] top.
+@22
+top.tr.i_char[7:0]
+top.i_reset
+top.tr.i_send_eep
+top.tr.i_send_eop
+top.tr.i_send_fct
+top.tr.i_send_esc
+top.tr.i_send_char

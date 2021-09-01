@@ -1,0 +1,61 @@
+[*]
+[*] GTKWave Analyzer v3.3.109 (w)1999-2020 BSI
+[*] Tue Aug 24 21:12:24 2021
+[*]
+[dumpfile] "/home/andres/sources/litex/litex-tests/6_DS_FSM_2/ds_transmitter.vcd"
+[dumpfile_mtime] "Tue Aug 24 21:11:19 2021"
+[dumpfile_size] 19644
+[savefile] "/home/andres/sources/litex/litex-tests/6_DS_FSM_2/ds_transmitter_viewer.gtkw"
+[timestart] 0
+[size] 1920 1031
+[pos] -1 -1
+*-26.160192 405600000 56499900 60499900 64499900 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[markername] AParity out from sr
+[markername] BType out from sr
+[markername] CData out from sr
+[treeopen] top.
+[treeopen] top.tr.
+[sst_width] 284
+[signals_width] 278
+[sst_expanded] 1
+[sst_vpaned_height] 288
+@28
+top.tr.clk
+@22
+top.tr.i_char[7:0]
+top.i_reset
+top.i_send_eep
+top.i_send_eop
+top.i_send_fct
+top.tr.i_send_esc
+top.tr.i_send_char
+@28
+top.tr.send_null
+top.tr.fsm_state
+top.tr.o_ready
+top.p.o_pulse
+top.tr.o_d
+top.tr.o_s
+top.tr.tx_clk
+@800023
+top.tr.sr.i_input[7:0]
+@29
+(0)top.tr.sr.i_input[7:0]
+(1)top.tr.sr.i_input[7:0]
+(2)top.tr.sr.i_input[7:0]
+(3)top.tr.sr.i_input[7:0]
+(4)top.tr.sr.i_input[7:0]
+(5)top.tr.sr.i_input[7:0]
+(6)top.tr.sr.i_input[7:0]
+(7)top.tr.sr.i_input[7:0]
+@1001201
+-group_end
+@28
+top.tr.sr.i_reset
+top.tr.sr.o_ready
+top.tr.sr.i_send_control
+top.tr.sr.i_send_data
+top.tr.sr.o_output
+top.tr.sr.fsm_state
+[pattern_trace] 1
+[pattern_trace] 0
