@@ -1,7 +1,7 @@
 [dumpfile] "/home/andres/sources/litex/litex-tests/6_DS_FSM_2/ds_fsm.vcd"
-[dumpfile_size] 294847
+[dumpfile_size] 294775
 [treeopen] top.
 @22
-top.i_link_enable
+top.fsm.i_link_enable
 top.fsm.o_d
 top.fsm.o_s

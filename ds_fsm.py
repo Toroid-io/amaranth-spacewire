@@ -95,7 +95,7 @@ class DS_FSM(Elaboratable):
                 with m.Else():
                     m.d.sync += tr.i_send_fct.eq(0)
 
-                with m.If((rx.o_got_fct & ~rx.o_got_null) == 1):
+                with m.If(rx.o_got_fct == 1):
                     m.d.sync += tx_credit.eq(tx_credit + 8)
                     m.next = "Run"
             with m.State("Run"):
@@ -129,9 +129,9 @@ class DS_FSM(Elaboratable):
         with m.If(main_fsm.ongoing("Connecting") | main_fsm.ongoing("Run")):
             with m.If(tx_can_send_char & ~rx.o_got_fct):
                 m.d.sync += tx_credit.eq(tx_credit - 1)
-            with m.If(rx.o_got_fct & ~rx.o_got_null & ~tx_can_send_char):
+            with m.If(rx.o_got_fct & ~tx_can_send_char):
                 m.d.sync += tx_credit.eq(tx_credit + 8)
-            with m.Elif(rx.o_got_fct & ~rx.o_got_null & tx_can_send_char):
+            with m.Elif(rx.o_got_fct & tx_can_send_char):
                 m.d.sync += tx_credit.eq(tx_credit + 7)
 
             with m.If(read_in_progress):

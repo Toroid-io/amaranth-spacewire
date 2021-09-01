@@ -146,9 +146,10 @@ class DSReceiver(Elaboratable):
                         with m.If(prev_char_type == 0):
                             with m.Switch(prev_control_char_wait_parity):
                                 with m.Case("001-"):
-                                    m.d.sync += [self.o_got_fct.eq(1), prev_got_esc.eq(0)]
                                     with m.If(prev_got_esc == 1):
-                                        m.d.sync += self.o_got_null.eq(1)
+                                        m.d.sync += [self.o_got_null.eq(1), prev_got_esc.eq(0)]
+                                    with m.Else():
+                                        m.d.sync += [self.o_got_fct.eq(1), prev_got_esc.eq(0)]
                                 with m.Case("101-"):
                                     m.d.sync += [self.o_got_eop.eq(1), prev_got_esc.eq(0)]
                                 with m.Case("010-"):
