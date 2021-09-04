@@ -42,6 +42,8 @@ class DSDelay(Elaboratable):
             with m.State("WAIT"):
                 with m.If((self.i_start & ~self.i_reset) == 1):
                     m.next = "DELAY"
+                with m.Elif(self.i_reset == 1):
+                    m.d.sync += [self.o_elapsed.eq(0), self.o_half_elapsed.eq(0)]
             with m.State("DELAY"):
                 with m.If(self.i_reset == 1):
                     m.d.sync += counter.eq(0)
