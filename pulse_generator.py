@@ -13,10 +13,9 @@ class PulseGenerator(Elaboratable):
         with m.FSM() as fsm:
             with m.State("IDLE"):
                 with m.If(self.i_en == 1):
-                    m.d.sync += self.o_pulse.eq(1)
+                    m.d.comb += self.o_pulse.eq(1)
                     m.next = "PULSE"
             with m.State("PULSE"):
-                m.d.sync += self.o_pulse.eq(0)
                 with m.If(self.i_en == 0):
                     m.next = "IDLE"
 
