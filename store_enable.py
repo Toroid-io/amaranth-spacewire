@@ -5,6 +5,7 @@ from pulse_generator import PulseGenerator
 
 class DSStoreEnable(Elaboratable):
     def __init__(self):
+        self.i_reset = Signal()
         self.i_d = Signal()
         self.i_clk_ddr = Signal()
         self.o_d = Signal()
@@ -13,8 +14,6 @@ class DSStoreEnable(Elaboratable):
     def elaborate(self, platform):
         self.pulse_rising = Signal()
         self.pulse_falling = Signal()
-        self.reg_d_1 = Signal()
-        self.reg_d_2 = Signal()
         self.reg_clk = Signal()
         self.reg_clk_n = Signal()
 
@@ -23,19 +22,23 @@ class DSStoreEnable(Elaboratable):
         m.d.comb += self.reg_clk_n.eq(~self.reg_clk)
 
         pg_rising = PulseGenerator()
-        m.d.comb += pg_rising.i_en.eq(self.reg_clk)
-        m.d.comb += self.pulse_rising.eq(pg_rising.o_pulse)
         pg_falling = PulseGenerator()
-        m.d.comb += pg_falling.i_en.eq(self.reg_clk_n)
-        m.d.comb += self.pulse_falling.eq(pg_falling.o_pulse)
+
+        m.d.comb += [
+            pg_rising.i_en.eq(self.reg_clk),
+            self.pulse_rising.eq(pg_rising.o_pulse),
+            pg_falling.i_en.eq(self.reg_clk_n),
+            self.pulse_falling.eq(pg_falling.o_pulse)
+        ]
 
         m.submodules += [pg_rising, pg_falling]
 
-        m.d.comb += self.o_store_en.eq(self.pulse_rising | self.pulse_falling)
+        with m.If(self.i_reset == 1):
+            m.d.comb += self.o_store_en.eq(0)
+        with m.Else():
+            m.d.comb += self.o_store_en.eq(self.pulse_rising | self.pulse_falling)
 
-        m.d.sync += self.reg_d_1.eq(self.i_d)
-        m.d.sync += self.reg_d_2.eq(self.reg_d_1)
-        m.d.comb += self.o_d.eq(self.reg_d_2)
+        m.d.comb += self.o_d.eq(self.i_d)
 
         return m
 
@@ -68,6 +71,9 @@ if __name__ == '__main__':
         yield from ds_set(0)
 
     def test():
+        yield sten.i_reset.eq(1)
+        yield Delay(10e-6)
+        yield sten.i_reset.eq(0)
         yield from ds_send_null()
         yield from ds_send_null()
         yield from ds_send_null()
