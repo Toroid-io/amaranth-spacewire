@@ -1,0 +1,7 @@
+[dumpfile] "/home/andres/sources/litex/litex-tests/6_DS_FSM_2/ds_encoder.vcd"
+[dumpfile_size] 684
+[treeopen] top.
+@22
+top.i_d
+top.enc.o_d
+top.enc.o_s

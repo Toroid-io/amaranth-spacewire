@@ -1,0 +1,6 @@
+[dumpfile] "/home/andres/sources/litex/litex-tests/6_DS_FSM_2/pulse_gen.vcd"
+[dumpfile_size] 625
+[treeopen] top.
+@22
+top.i_en
+top.pg.o_pulse

@@ -1,0 +1,8 @@
+[dumpfile] "/home/andres/sources/litex/litex-tests/6_DS_FSM_2/store_enable.vcd"
+[dumpfile_size] 3992
+[treeopen] top.
+@22
+top.i_d
+top.sten.i_clk_ddr
+top.sten.o_d
+top.sten.o_store_en

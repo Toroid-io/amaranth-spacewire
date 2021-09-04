@@ -1,0 +1,31 @@
+[*]
+[*] GTKWave Analyzer v3.3.109 (w)1999-2020 BSI
+[*] Thu Sep  2 19:54:32 2021
+[*]
+[dumpfile] "/home/andres/sources/litex/litex-tests/6_DS_FSM_2/ds_decoder.vcd"
+[dumpfile_mtime] "Thu Sep  2 19:52:01 2021"
+[dumpfile_size] 1525
+[savefile] "/home/andres/sources/litex/litex-tests/6_DS_FSM_2/ds_decoder.gtkw"
+[timestart] 0
+[size] 1920 1031
+[pos] -1 -1
+*-22.000000 1170000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] top.
+[sst_width] 284
+[signals_width] 185
+[sst_expanded] 1
+[sst_vpaned_height] 288
+@28
+top.dec.clk
+@22
+top.i_d
+top.i_s
+top.dec.o_d
+top.dec.o_clk_ddr
+@28
+top.dec.stable_ds_even
+top.dec.stable_ds_odd
+@29
+top.dec.stable_xor
+[pattern_trace] 1
+[pattern_trace] 0
