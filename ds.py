@@ -86,6 +86,7 @@ if __name__ == '__main__':
     mdec.d.comb += dec.i_s.eq(i_s_dec)
 
     simdec = Simulator(mdec)
+    simdec.add_clock(1e-6)
 
     def ds_set(d, s):
         yield i_d_dec.eq(d)
