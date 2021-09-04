@@ -1,46 +1,52 @@
 [*]
 [*] GTKWave Analyzer v3.3.109 (w)1999-2020 BSI
-[*] Wed Sep  1 20:37:16 2021
+[*] Thu Sep  2 21:47:24 2021
 [*]
 [dumpfile] "/home/andres/sources/litex/litex-tests/6_DS_FSM_2/ds_fsm.vcd"
-[dumpfile_mtime] "Wed Sep  1 20:37:13 2021"
-[dumpfile_size] 294865
+[dumpfile_mtime] "Thu Sep  2 21:46:57 2021"
+[dumpfile_size] 4949871
 [savefile] "/home/andres/sources/litex/litex-tests/6_DS_FSM_2/ds_fsm_viewer.gtkw"
-[timestart] 0
+[timestart] 48800000
 [size] 1920 1031
 [pos] -1 -1
-*-28.000000 107000000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-22.000000 53100000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] top.
 [treeopen] top.fsm.
+[treeopen] top.fsm.rx.control_sr.
+[treeopen] top.fsm.rx.store_en.
+[treeopen] top.fsm.tr.
 [sst_width] 284
-[signals_width] 255
+[signals_width] 330
 [sst_expanded] 1
-[sst_vpaned_height] 600
+[sst_vpaned_height] 282
 @28
 top.fsm.clk
+top.fsm.tr.tx_clk
+top.fsm.tr.sr.o_ready
 @22
 top.fsm.o_d
 top.fsm.o_s
 @28
+top.fsm.i_send_fct
+top.fsm.tr.fsm_state
+top.fsm.tr.sr.o_ready
+top.fsm.fsm_state
+top.fsm.rx.o_got_null
 top.fsm.i_link_enable
-top.fsm.tr.tx_clk
-top.fsm.tr.o_d
-top.fsm.tr.o_s
-top.fsm.rx.i_reset
+top.fsm.rx.o_got_fct
+top.fsm.rx.o_parity_error
+top.fsm.rx.o_read_error
+top.fsm.rx.o_got_data
 top.fsm.delay.i_reset
-@22
-top.fsm.delay.counter[6:0]
-@28
 top.fsm.delay.fsm_state
 top.fsm.delay.i_start
 top.fsm.delay.o_half_elapsed
-@29
+>-25000
 top.fsm.delay.o_elapsed
-@28
+>0
 top.fsm.tr.i_reset
 top.fsm.tr.sr.i_reset
 top.fsm.tr.encoder.i_reset
-top.fsm.fsm_state
 top.fsm.i_w_en
 top.fsm.w_rdy
 top.fsm.tx_can_send_char
@@ -52,7 +58,7 @@ top.fsm.tx_fifo.r_rdy
 top.fsm.tr.o_ready
 top.fsm.tx_fifo.r_en
 top.fsm.rx.o_got_data
-@24
+@821
 top.fsm.rx.o_data_char[7:0]
 @28
 top.fsm.rx_fifo.w_en
