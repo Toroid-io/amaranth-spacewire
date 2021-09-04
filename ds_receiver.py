@@ -20,6 +20,7 @@ class DSReceiver(Elaboratable):
         self.o_got_data = Signal()
         self.o_parity_error = Signal()
         self.o_read_error = Signal()
+        self.o_escape_error = Signal()
 
     def elaborate(self, platform):
         m = Module()
@@ -83,10 +84,12 @@ class DSReceiver(Elaboratable):
                 prev_got_esc.eq(0),
                 self.o_data_char.eq(0),
                 self.o_parity_error.eq(0),
-                self.o_read_error.eq(0)
+                self.o_read_error.eq(0),
+                self.o_escape_error.eq(0)
             ]
 
         m.d.comb += [
+            store_en.i_reset.eq(self.i_reset),
             decoder.i_d.eq(self.i_d),
             decoder.i_s.eq(self.i_s),
             store_en.i_d.eq(decoder.o_d),
@@ -130,11 +133,18 @@ class DSReceiver(Elaboratable):
         # Start expecting a control char ESC
         with m.FSM() as fsm:
             with m.State("SYNC"):
-                with m.If(control_sr.o_detected_esc):
-                    m.d.sync += counter.eq(0)
+                with m.If(~self.i_reset & control_sr.o_detected_esc):
+                    m.d.sync += [
+                        counter.eq(0),
+                        parity_prev.eq(parity_control_next),
+                        prev_control_char_wait_parity.eq(control_sr.o_char),
+                        prev_char_type.eq(0)
+                    ]
                     m.next = "READ_HEADER"
             with m.State("READ_HEADER"):
-                with m.If(counter == 2):
+                with m.If(self.i_reset == 1):
+                    m.next = "SYNC"
+                with m.Elif(counter == 2):
                     with m.If(control_sr.o_char[3] == 1):
                         m.next = "READ_CONTROL_CHAR"
                         m.d.sync += counter_limit.eq(4)
@@ -151,11 +161,23 @@ class DSReceiver(Elaboratable):
                                     with m.Else():
                                         m.d.sync += [self.o_got_fct.eq(1), prev_got_esc.eq(0)]
                                 with m.Case("101-"):
-                                    m.d.sync += [self.o_got_eop.eq(1), prev_got_esc.eq(0)]
+                                    with m.If(prev_got_esc == 1):
+                                        m.d.sync += [self.o_escape_error.eq(1)]
+                                        m.next = "ERROR"
+                                    with m.Else():
+                                        m.d.sync += [self.o_got_eop.eq(1), prev_got_esc.eq(0)]
                                 with m.Case("010-"):
-                                    m.d.sync += [self.o_got_eep.eq(1), prev_got_esc.eq(0)]
+                                    with m.If(prev_got_esc == 1):
+                                        m.d.sync += [self.o_escape_error.eq(1)]
+                                        m.next = "ERROR"
+                                    with m.Else():
+                                        m.d.sync += [self.o_got_eep.eq(1), prev_got_esc.eq(0)]
                                 with m.Case("111-"):
-                                    m.d.sync += [self.o_got_esc.eq(1), prev_got_esc.eq(1)]
+                                    with m.If(prev_got_esc == 1):
+                                        m.d.sync += [self.o_escape_error.eq(1)]
+                                        m.next = "ERROR"
+                                    with m.Else():
+                                        m.d.sync += [self.o_got_esc.eq(1), prev_got_esc.eq(1)]
                         with m.Else():
                             m.d.sync += [
                                 self.o_got_data.eq(1),
@@ -167,7 +189,9 @@ class DSReceiver(Elaboratable):
                         ]
                         m.next = "ERROR"
             with m.State("READ_CONTROL_CHAR"):
-                with m.If((counter_full & control_sr.o_detected) == 1):
+                with m.If(self.i_reset == 1):
+                    m.next = "SYNC"
+                with m.Elif((counter_full & control_sr.o_detected) == 1):
                     m.d.sync += [
                         parity_prev.eq(parity_control_next),
                         prev_control_char_wait_parity.eq(control_sr.o_char),
@@ -178,7 +202,9 @@ class DSReceiver(Elaboratable):
                     m.d.sync += self.o_read_error.eq(1)
                     m.next = "ERROR"
             with m.State("READ_DATA_CHAR"):
-                with m.If((counter_full & data_sr.o_detected) == 1):
+                with m.If(self.i_reset == 1):
+                    m.next = "SYNC"
+                with m.Elif((counter_full & data_sr.o_detected) == 1):
                     m.d.sync += [
                         parity_prev.eq(parity_data_next),
                         prev_data_char_wait_parity.eq(data_sr.o_char[2:10]),
@@ -295,7 +321,7 @@ if __name__ == '__main__':
                 yield from ds_send_null()
 
         def reset_manage():
-            for _ in range(50):
+            for _ in range(25):
                 yield
             yield i_reset.eq(0)
             while True:
