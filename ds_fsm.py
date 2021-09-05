@@ -1,15 +1,14 @@
 from nmigen import *
 from nmigen.lib.fifo import SyncFIFOBuffered
 from nmigen.sim import Simulator
-from bitarray import bitarray
 from ds_transmitter import DSTransmitter
 from ds_receiver import DSReceiver
 from ds_delay import DSDelay
-import math
-
+from ds_sim_utils import *
 
 class DS_FSM(Elaboratable):
     def __init__(self, srcfreq, txfreq):
+        self.i_reset = Signal()
         self.i_link_enable = Signal()
         self.o_tx_ready = Signal()
         self.o_d = Signal()
@@ -31,7 +30,7 @@ class DS_FSM(Elaboratable):
         m = Module()
 
         m.submodules.tr = tr = DSTransmitter(self._srcfreq, self._txfreq)
-        m.submodules.rx = rx = DSReceiver()
+        m.submodules.rx = rx = DSReceiver(self._srcfreq)
         m.submodules.delay = delay = DSDelay(self._srcfreq, 12.8e-6, strategy='at_least')
 
         tr_pre_send = Signal()
@@ -40,13 +39,14 @@ class DS_FSM(Elaboratable):
         rx_read_counter = Signal(range(8))
         tx_credit = Signal(range(16 + 1)) # TODO tx fifo size
         read_in_progress = Signal()
+        gotNULL = Signal()
 
         m.d.comb += [
             self.o_d.eq(tr.o_d),
             self.o_s.eq(tr.o_s),
             rx.i_d.eq(tr.o_d),
             rx.i_s.eq(tr.o_s),
-            rx_error.eq(rx.o_escape_error | rx.o_parity_error | rx.o_read_error) # TODO: Missing disconnect error
+            rx_error.eq(rx.o_escape_error | rx.o_parity_error | rx.o_read_error | rx.o_disconnect_error)
         ]
 
         m.submodules.rx_fifo = rx_fifo = SyncFIFOBuffered(width=8, depth=16)
@@ -77,7 +77,9 @@ class DS_FSM(Elaboratable):
                 m.d.comb += rx.i_reset.eq(1)
                 m.d.comb += tr.i_reset.eq(1)
 
-                with m.If(delay.o_half_elapsed):
+                with m.If(self.i_reset):
+                    pass
+                with m.Elif(delay.o_half_elapsed):
                     m.d.comb += delay.i_reset.eq(1)
                     m.next = "ErrorWait"
                 with m.Else():
@@ -92,6 +94,8 @@ class DS_FSM(Elaboratable):
                 with m.Elif(delay.o_elapsed == 1):
                     m.d.comb += delay.i_reset.eq(1)
                     m.next = "Ready"
+                with m.Elif(rx.o_got_null):
+                    m.d.sync += gotNULL.eq(1)
                 with m.Else():
                     m.d.comb += delay.i_start.eq(1)
             with m.State("Ready"):
@@ -103,6 +107,8 @@ class DS_FSM(Elaboratable):
                     m.next = "ErrorReset"
                 with m.Elif(self.i_link_enable == 1):
                     m.next = "Started"
+                with m.Elif(rx.o_got_null):
+                    m.d.sync += gotNULL.eq(1)
             with m.State("Started"):
                 m.d.comb += rx.i_reset.eq(0)
                 m.d.comb += tr.i_reset.eq(0)
@@ -110,7 +116,8 @@ class DS_FSM(Elaboratable):
                 with m.If((rx_error | rx.o_got_fct | rx.o_got_data | delay.o_elapsed) == 1): # TODO: Missing o_got_time_code
                     m.d.comb += delay.i_reset.eq(1)
                     m.next = "ErrorReset"
-                with m.Elif(rx.o_got_null == 1):
+                with m.Elif((gotNULL | rx.o_got_null) == 1):
+                    m.d.sync += gotNULL.eq(1)
                     m.d.comb += delay.i_reset.eq(1)
                     m.next = "Connecting"
                 with m.Else():
@@ -185,30 +192,22 @@ if __name__ == '__main__':
     sim = Simulator(m)
     sim.add_clock(1/srcfreq)
 
-    def char_to_bits(c):
-        ret = bitarray(endian='little')
-        ret.frombytes(c.encode())
-        return ret
-
-    def period_to_ticks(p):
-        return math.ceil(p * srcfreq)
-
     def test():
-        for _ in range(period_to_ticks(25e-6)):
+        for _ in range(ds_sim_period_to_ticks(25e-6, srcfreq)):
             yield
         yield i_link_enable.eq(1)
-        for _ in range(period_to_ticks(30e-6)):
+        for _ in range(ds_sim_period_to_ticks(30e-6, srcfreq)):
             yield
         for i in range(40):
             yield fsm.i_w_en.eq(1)
             yield fsm.i_w_data.eq(ord('A')+i)
             yield
         yield fsm.i_w_en.eq(0)
-        for _ in range(period_to_ticks(100e-6)):
+        for _ in range(ds_sim_period_to_ticks(100e-6, srcfreq)):
             yield
 
     def read_from_fifo():
-        for _ in range(period_to_ticks(400e-6)):
+        for _ in range(ds_sim_period_to_ticks(400e-6, srcfreq)):
             yield
         while True:
             if (yield fsm.o_r_rdy):

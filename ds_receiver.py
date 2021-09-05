@@ -3,11 +3,12 @@ from nmigen.sim import Simulator, Delay
 from ds_char_shift_register import DSCharControlShiftRegister, DSCharDataShiftRegister
 from ds import DSDecoder
 from store_enable import DSStoreEnable
-from bitarray import bitarray
+from ds_disconnect import DSDisconnect
+from ds_sim_utils import *
 
 
 class DSReceiver(Elaboratable):
-    def __init__(self):
+    def __init__(self, srcfreq):
         self.i_d = Signal()
         self.i_s = Signal()
         self.i_reset = Signal()
@@ -21,6 +22,8 @@ class DSReceiver(Elaboratable):
         self.o_parity_error = Signal()
         self.o_read_error = Signal()
         self.o_escape_error = Signal()
+        self.o_disconnect_error = Signal()
+        self._srcfreq = srcfreq
 
     def elaborate(self, platform):
         m = Module()
@@ -28,6 +31,7 @@ class DSReceiver(Elaboratable):
         m.submodules.store_en = store_en = DSStoreEnable()
         m.submodules.control_sr = control_sr = DSCharControlShiftRegister()
         m.submodules.data_sr = data_sr = DSCharDataShiftRegister()
+        m.submodules.disc = disc = DSDisconnect(self._srcfreq)
 
         # Counter used to read 4 by 4 the shift register output.
         counter = Signal(4)
@@ -100,7 +104,10 @@ class DSReceiver(Elaboratable):
             data_sr.i_store.eq(store_en.o_store_en),
             parity_control_next.eq(control_sr.o_parity_next),
             parity_data_next.eq(data_sr.o_parity_next),
-            parity_check.eq(parity_prev ^ parity_char_prev)
+            parity_check.eq(parity_prev ^ parity_char_prev),
+            disc.i_store_en.eq(store_en.o_store_en),
+            disc.i_reset.eq(self.i_reset),
+            self.o_disconnect_error.eq(disc.o_disconnected)
         ]
 
         m.d.comb += [
@@ -221,17 +228,23 @@ class DSReceiver(Elaboratable):
         return m
 
     def ports(self):
-        return [self.i_d, self.i_s]
+        return [
+            self.i_d, self.i_s, self.i_reset, self.o_got_fct, self.o_got_eep,
+            self.o_got_eop, self.o_got_esc, self.o_got_null, self.o_data_char,
+            self.o_got_data, self.o_parity_error, self.o_read_error,
+            self.o_escape_error, self.o_disconnect_error
+        ]
 
 
 if __name__ == '__main__':
     def test_receiver():
+        srcfreq = 30e6
         i_d = Signal()
         i_s = Signal()
         i_reset = Signal(reset=1)
 
         m = Module()
-        m.submodules.rv = rv = DSReceiver()
+        m.submodules.rv = rv = DSReceiver(srcfreq)
         m.d.comb += [
             rv.i_d.eq(i_d),
             rv.i_s.eq(i_s),
@@ -239,86 +252,23 @@ if __name__ == '__main__':
         ]
 
         sim = Simulator(m)
-        sim.add_clock(1e-6)
-
-        global prev_d
-        global prev_s
-        global prev_parity
-        prev_d = False
-        prev_s = False
-        prev_parity = False
-
-        def ds_send_d(d):
-            global prev_d
-            global prev_s
-            yield i_d.eq(d)
-            if d != prev_d:
-                yield i_s.eq(prev_s)
-            else:
-                prev_s = not prev_s
-                yield i_s.eq(prev_s)
-            prev_d = d
-            yield Delay(2.2e-6)
-
-        def ds_send_char(b):
-            global prev_parity
-            data = bitarray(endian='little')
-            data.frombytes(b.encode())
-            parity = not (prev_parity ^ False)
-            next_parity = False
-            for i in range(8):
-                next_parity = next_parity ^ data[i]
-            prev_parity = next_parity
-            yield from ds_send_d(parity)
-            yield from ds_send_d(0)
-            for i in range(8):
-                yield from ds_send_d(data[i])
-
-        def ds_send_null():
-            global prev_parity
-            parity = not (prev_parity ^ True)
-            prev_parity = False
-            yield from ds_send_d(parity)
-            yield from ds_send_d(1)
-            yield from ds_send_d(1)
-            yield from ds_send_d(1)
-            parity = not (prev_parity ^ True)
-            prev_parity = False
-            yield from ds_send_d(parity)
-            yield from ds_send_d(1)
-            yield from ds_send_d(0)
-            yield from ds_send_d(0)
-
-        def ds_send_wrong_null():
-            global prev_parity
-            parity = not (prev_parity ^ True)
-            prev_parity = False
-            yield from ds_send_d(parity)
-            yield from ds_send_d(1)
-            yield from ds_send_d(1)
-            yield from ds_send_d(1)
-            parity = not (prev_parity ^ True)
-            prev_parity = False
-            yield from ds_send_d(not parity)
-            yield from ds_send_d(1)
-            yield from ds_send_d(0)
-            yield from ds_send_d(0)
+        sim.add_clock(1/srcfreq)
 
         def decoder_test():
             yield Delay(50e-6)
             for _ in range(30):
-                yield from ds_send_null()
-            yield from ds_send_wrong_null()
-            yield from ds_send_null()
-            yield from ds_send_null()
-            yield from ds_send_char('A')
-            yield from ds_send_char('N')
-            yield from ds_send_char('D')
-            yield from ds_send_char('R')
-            yield from ds_send_char('E')
-            yield from ds_send_char('S')
+                yield from ds_sim_send_null(i_d, i_s)
+            yield from ds_sim_send_wrong_null(i_d, i_s)
+            yield from ds_sim_send_null(i_d, i_s)
+            yield from ds_sim_send_null(i_d, i_s)
+            yield from ds_sim_send_char(i_d, i_s, 'A')
+            yield from ds_sim_send_char(i_d, i_s, 'N')
+            yield from ds_sim_send_char(i_d, i_s, 'D')
+            yield from ds_sim_send_char(i_d, i_s, 'R')
+            yield from ds_sim_send_char(i_d, i_s, 'E')
+            yield from ds_sim_send_char(i_d, i_s, 'S')
             for _ in range(30):
-                yield from ds_send_null()
+                yield from ds_sim_send_null(i_d, i_s)
 
         def reset_manage():
             for _ in range(25):

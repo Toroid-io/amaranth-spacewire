@@ -1,6 +1,18 @@
 [dumpfile] "/home/andres/sources/litex/litex-tests/6_DS_FSM_2/ds_receiver.vcd"
-[dumpfile_size] 166344
+[dumpfile_size] 2104034
 [treeopen] top.
 @22
-top.rv.i_d
+top.i_d
 top.i_s
+top.i_reset
+top.rv.o_got_fct
+top.rv.o_got_eep
+top.rv.o_got_eop
+top.rv.o_got_esc
+top.rv.o_got_null
+top.rv.o_data_char[7:0]
+top.rv.o_got_data
+top.rv.o_parity_error
+top.rv.o_read_error
+top.rv.o_escape_error
+top.rv.o_disconnect_error

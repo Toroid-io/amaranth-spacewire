@@ -16,7 +16,7 @@ def _ticksForDelay(freq, delay, max_ppm=None, strategy='at_most'):
         raise ArgumentError("Ticks deviation is too high")
 
     if delay == 0 or delay is None or ticks == 0:
-        raise ArgumentError("Period is too large for the requested delay")
+        raise ArgumentError("Frequency is too low for the requested delay")
 
     return ticks
 
