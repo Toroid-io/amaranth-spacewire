@@ -6,6 +6,7 @@ from clk_div import ClockDivider
 from bitarray import bitarray
 
 
+# TODO: self.i_send_timecode
 class DSTransmitter(Elaboratable):
     def __init__(self, srcfreq, txfreq):
         self.i_reset = Signal()

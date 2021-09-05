@@ -17,6 +17,7 @@ class DSReceiver(Elaboratable):
         self.o_got_eop = Signal()
         self.o_got_esc = Signal()
         self.o_got_null = Signal()
+        self.o_got_timecode = Signal()
         self.o_data_char = Signal(8)
         self.o_got_data = Signal()
         self.o_parity_error = Signal()
@@ -116,12 +117,15 @@ class DSReceiver(Elaboratable):
 
         # By default, set these to zero. They will be overriden when a character
         # is validated in the FSM.
-        m.d.sync += self.o_got_data.eq(0)
-        m.d.sync += self.o_got_eep.eq(0)
-        m.d.sync += self.o_got_eop.eq(0)
-        m.d.sync += self.o_got_fct.eq(0)
-        m.d.sync += self.o_got_esc.eq(0)
-        m.d.sync += self.o_got_null.eq(0)
+        m.d.sync += [
+            self.o_got_data.eq(0),
+            self.o_got_eep.eq(0),
+            self.o_got_eop.eq(0),
+            self.o_got_fct.eq(0),
+            self.o_got_esc.eq(0),
+            self.o_got_null.eq(0),
+            self.o_got_timecode.eq(0)
+        ]
 
         # Manage counter
         with m.If(self.i_reset == 1):
@@ -166,19 +170,19 @@ class DSReceiver(Elaboratable):
                                     with m.If(prev_got_esc == 1):
                                         m.d.sync += [self.o_got_null.eq(1), prev_got_esc.eq(0)]
                                     with m.Else():
-                                        m.d.sync += [self.o_got_fct.eq(1), prev_got_esc.eq(0)]
+                                        m.d.sync += self.o_got_fct.eq(1)
                                 with m.Case("101-"):
                                     with m.If(prev_got_esc == 1):
                                         m.d.sync += [self.o_escape_error.eq(1)]
                                         m.next = "ERROR"
                                     with m.Else():
-                                        m.d.sync += [self.o_got_eop.eq(1), prev_got_esc.eq(0)]
+                                        m.d.sync += [self.o_got_eop.eq(1)]
                                 with m.Case("010-"):
                                     with m.If(prev_got_esc == 1):
                                         m.d.sync += [self.o_escape_error.eq(1)]
                                         m.next = "ERROR"
                                     with m.Else():
-                                        m.d.sync += [self.o_got_eep.eq(1), prev_got_esc.eq(0)]
+                                        m.d.sync += [self.o_got_eep.eq(1)]
                                 with m.Case("111-"):
                                     with m.If(prev_got_esc == 1):
                                         m.d.sync += [self.o_escape_error.eq(1)]
@@ -186,10 +190,11 @@ class DSReceiver(Elaboratable):
                                     with m.Else():
                                         m.d.sync += [self.o_got_esc.eq(1), prev_got_esc.eq(1)]
                         with m.Else():
-                            m.d.sync += [
-                                self.o_got_data.eq(1),
-                                self.o_data_char.eq(prev_data_char_wait_parity)
-                            ]
+                            with m.If(prev_got_esc == 1):
+                                m.d.sync += [self.o_got_timecode.eq(1), prev_got_esc.eq(0)]
+                            with m.Else():
+                                m.d.sync += self.o_got_data.eq(1)
+                            m.d.sync += self.o_data_char.eq(prev_data_char_wait_parity)
                     with m.Else():
                         m.d.sync += [
                             self.o_parity_error.eq(1)
@@ -232,7 +237,7 @@ class DSReceiver(Elaboratable):
             self.i_d, self.i_s, self.i_reset, self.o_got_fct, self.o_got_eep,
             self.o_got_eop, self.o_got_esc, self.o_got_null, self.o_data_char,
             self.o_got_data, self.o_parity_error, self.o_read_error,
-            self.o_escape_error, self.o_disconnect_error
+            self.o_escape_error, self.o_disconnect_error, self.o_got_timecode
         ]
 
 
@@ -267,6 +272,10 @@ if __name__ == '__main__':
             yield from ds_sim_send_char(i_d, i_s, 'R')
             yield from ds_sim_send_char(i_d, i_s, 'E')
             yield from ds_sim_send_char(i_d, i_s, 'S')
+            yield from ds_sim_send_null(i_d, i_s)
+            yield from ds_sim_send_null(i_d, i_s)
+            yield from ds_sim_send_null(i_d, i_s)
+            yield from ds_sim_send_timecode(i_d, i_s, 0x30)
             for _ in range(30):
                 yield from ds_sim_send_null(i_d, i_s)
 

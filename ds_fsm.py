@@ -88,7 +88,7 @@ class DS_FSM(Elaboratable):
                 m.d.comb += rx.i_reset.eq(0)
                 m.d.comb += tr.i_reset.eq(1)
 
-                with m.If((rx_error | (gotNULL & (rx.o_got_fct | rx.o_got_data))) == 1): # TODO: Missing o_got_time_code
+                with m.If((rx_error | (gotNULL & (rx.o_got_fct | rx.o_got_data | rx.o_got_timecode))) == 1):
                     m.d.comb += delay.i_reset.eq(1)
                     m.next = "ErrorReset"
                 with m.Elif(delay.o_elapsed == 1):
@@ -102,7 +102,7 @@ class DS_FSM(Elaboratable):
                 m.d.comb += rx.i_reset.eq(0)
                 m.d.comb += tr.i_reset.eq(1)
 
-                with m.If((rx_error | (gotNULL & (rx.o_got_fct | rx.o_got_data))) == 1): # TODO: Missing o_got_time_code
+                with m.If((rx_error | (gotNULL & (rx.o_got_fct | rx.o_got_data | rx.o_got_timecode))) == 1):
                     m.d.comb += delay.i_reset.eq(1)
                     m.next = "ErrorReset"
                 with m.Elif(self.i_link_enable == 1):
@@ -113,7 +113,7 @@ class DS_FSM(Elaboratable):
                 m.d.comb += rx.i_reset.eq(0)
                 m.d.comb += tr.i_reset.eq(0)
 
-                with m.If((rx_error | (gotNULL & (rx.o_got_fct | rx.o_got_data)) | delay.o_elapsed) == 1): # TODO: Missing o_got_time_code
+                with m.If((rx_error | (gotNULL & (rx.o_got_fct | rx.o_got_data | rx.o_got_timecode)) | delay.o_elapsed) == 1):
                     m.d.comb += delay.i_reset.eq(1)
                     m.next = "ErrorReset"
                 with m.Elif((gotNULL | rx.o_got_null) == 1):
@@ -126,7 +126,7 @@ class DS_FSM(Elaboratable):
                 m.d.comb += rx.i_reset.eq(0)
                 m.d.comb += tr.i_reset.eq(0)
 
-                with m.If((rx_error | rx.o_got_data | delay.o_elapsed) == 1): # TODO: Missing o_got_time_code
+                with m.If((rx_error | rx.o_got_data | rx.o_got_timecode | delay.o_elapsed) == 1):
                     m.d.comb += delay.i_reset.eq(1)
                     m.next = "ErrorReset"
                 with m.Elif(rx.o_got_fct == 1):

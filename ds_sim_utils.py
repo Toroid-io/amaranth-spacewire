@@ -1,5 +1,6 @@
 from nmigen.sim import Delay
 from bitarray import bitarray
+from bitarray.util import int2ba
 import math
 
 global prev_d
@@ -43,6 +44,19 @@ def ds_sim_send_char(i_d, i_s, b):
     for i in range(8):
         yield from ds_sim_send_d(i_d, i_s, data[i])
 
+def ds_sim_send_int(i_d, i_s, b):
+    global prev_parity
+    data = int2ba(b, length=8, endian='little')
+    parity = not (prev_parity ^ False)
+    next_parity = False
+    for i in range(8):
+        next_parity = next_parity ^ data[i]
+    prev_parity = next_parity
+    yield from ds_sim_send_d(i_d, i_s, parity)
+    yield from ds_sim_send_d(i_d, i_s, 0)
+    for i in range(8):
+        yield from ds_sim_send_d(i_d, i_s, data[i])
+
 def ds_sim_send_null(i_d, i_s):
     global prev_parity
     parity = not (prev_parity ^ True)
@@ -57,6 +71,16 @@ def ds_sim_send_null(i_d, i_s):
     yield from ds_sim_send_d(i_d, i_s, 1)
     yield from ds_sim_send_d(i_d, i_s, 0)
     yield from ds_sim_send_d(i_d, i_s, 0)
+
+def ds_sim_send_timecode(i_d, i_s, code):
+    global prev_parity
+    parity = not (prev_parity ^ True)
+    prev_parity = False
+    yield from ds_sim_send_d(i_d, i_s, parity)
+    yield from ds_sim_send_d(i_d, i_s, 1)
+    yield from ds_sim_send_d(i_d, i_s, 1)
+    yield from ds_sim_send_d(i_d, i_s, 1)
+    yield from ds_sim_send_int(i_d, i_s, code)
 
 def ds_sim_send_wrong_null(i_d, i_s):
     global prev_parity
