@@ -35,9 +35,10 @@ class DS_FSM(Elaboratable):
 
         tr_pre_send = Signal()
         rx_error = Signal()
-        rx_tokens_count = Signal(range(2 + 1), reset=2) # TODO range rx fifo size / 8
+        rx_tokens_count = Signal(range(7 + 1), reset=7)
         rx_read_counter = Signal(range(8))
-        tx_credit = Signal(range(16 + 1)) # TODO tx fifo size
+        tx_credit = Signal(range(56 + 1))
+        tx_credit_error = Signal()
         read_in_progress = Signal()
         gotNULL = Signal()
 
@@ -49,8 +50,8 @@ class DS_FSM(Elaboratable):
             rx_error.eq(rx.o_escape_error | rx.o_parity_error | rx.o_read_error | rx.o_disconnect_error)
         ]
 
-        m.submodules.rx_fifo = rx_fifo = SyncFIFOBuffered(width=8, depth=16)
-        m.submodules.tx_fifo = tx_fifo = SyncFIFOBuffered(width=8, depth=16)
+        m.submodules.rx_fifo = rx_fifo = SyncFIFOBuffered(width=8, depth=56)
+        m.submodules.tx_fifo = tx_fifo = SyncFIFOBuffered(width=8, depth=56)
 
         m.d.comb += [
             rx_fifo.r_en.eq(self.i_r_en),
@@ -140,15 +141,16 @@ class DS_FSM(Elaboratable):
                 m.d.comb += tr.i_reset.eq(0)
                 m.d.comb += tr_pre_send.eq((tx_fifo.level > 0) & tr.o_ready & (tx_credit > 0) & tx_fifo.r_rdy)
 
-                with m.If((rx_error | ~self.i_link_enable) == 1): # TODO: Missing credit error
+                with m.If((rx_error | tx_credit_error | ~self.i_link_enable) == 1):
                     m.d.comb += delay.i_reset.eq(1)
                     # TODO Reset tokens and credits
                     m.next = "ErrorReset"
                 with m.Else():
-                    # TX: i_send_char shifted a cycle to allow tx_fifo to output its value
-                    m.d.comb += tx_fifo.r_en.eq(tr_pre_send)
-                    m.d.comb += tr.i_send_char.eq(tr_pre_send)
-                    m.d.comb += rx_fifo.w_en.eq(rx.o_got_data)
+                    m.d.comb += [
+                        tx_fifo.r_en.eq(tr_pre_send),
+                        tr.i_send_char.eq(tr_pre_send),
+                        rx_fifo.w_en.eq(rx.o_got_data)
+                    ]
 
         # Tokens and credit management
         with m.If(main_fsm.ongoing("Connecting") | main_fsm.ongoing("Run")):
@@ -156,7 +158,9 @@ class DS_FSM(Elaboratable):
 
             with m.If(tr.i_send_char & ~rx.o_got_fct):
                 m.d.sync += tx_credit.eq(tx_credit - 1)
-            with m.If(rx.o_got_fct & ~tr.i_send_char):
+            with m.Elif(rx.o_got_fct & (tx_credit > (56 - 8))):
+                m.d.comb += tx_credit_error.eq(1)
+            with m.Elif(rx.o_got_fct & ~tr.i_send_char):
                 m.d.sync += tx_credit.eq(tx_credit + 8)
             with m.Elif(rx.o_got_fct & tr.i_send_char):
                 m.d.sync += tx_credit.eq(tx_credit + 7)
