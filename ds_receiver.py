@@ -69,6 +69,9 @@ class DSReceiver(Elaboratable):
         prev_char_type = Signal()
         # NULL detection
         prev_got_esc = Signal()
+        # Silent double end of packet frop
+        prev_got_eop = Signal()
+        prev_got_eep = Signal()
 
         # Reset all signals
         with m.If(self.i_reset):
@@ -87,6 +90,8 @@ class DSReceiver(Elaboratable):
                 prev_data_char_wait_parity.eq(0),
                 prev_char_type.eq(0),
                 prev_got_esc.eq(0),
+                prev_got_eop.eq(0),
+                prev_got_eep.eq(0),
                 self.o_data_char.eq(0),
                 self.o_parity_error.eq(0),
                 self.o_read_error.eq(0),
@@ -170,31 +175,36 @@ class DSReceiver(Elaboratable):
                                     with m.If(prev_got_esc == 1):
                                         m.d.sync += [self.o_got_null.eq(1), prev_got_esc.eq(0)]
                                     with m.Else():
-                                        m.d.sync += self.o_got_fct.eq(1)
+                                        m.d.sync += [self.o_got_fct.eq(1), prev_got_eop.eq(0), prev_got_eep.eq(0)]
                                 with m.Case("101-"):
                                     with m.If(prev_got_esc == 1):
                                         m.d.sync += [self.o_escape_error.eq(1)]
                                         m.next = "ERROR"
+                                    with m.Elif(prev_got_eep | prev_got_eop):
+                                        m.d.sync += [prev_got_eop.eq(1), prev_got_eep.eq(0)]
                                     with m.Else():
-                                        m.d.sync += [self.o_got_eop.eq(1)]
+                                        m.d.sync += [self.o_got_eop.eq(1), prev_got_eop.eq(1), prev_got_eep.eq(0)]
                                 with m.Case("010-"):
                                     with m.If(prev_got_esc == 1):
                                         m.d.sync += [self.o_escape_error.eq(1)]
                                         m.next = "ERROR"
+                                    with m.Elif(prev_got_eep | prev_got_eop):
+                                        m.d.sync += [prev_got_eep.eq(1), prev_got_eop.eq(0)]
                                     with m.Else():
-                                        m.d.sync += [self.o_got_eep.eq(1)]
+                                        m.d.sync += [self.o_got_eep.eq(1), prev_got_eep.eq(1), prev_got_eop.eq(0)]
                                 with m.Case("111-"):
                                     with m.If(prev_got_esc == 1):
                                         m.d.sync += [self.o_escape_error.eq(1)]
                                         m.next = "ERROR"
                                     with m.Else():
-                                        m.d.sync += [self.o_got_esc.eq(1), prev_got_esc.eq(1)]
+                                        m.d.sync += [self.o_got_esc.eq(1), prev_got_esc.eq(1), prev_got_eep.eq(0), prev_got_eop.eq(0)]
                         with m.Else():
                             with m.If(prev_got_esc == 1):
                                 m.d.sync += [self.o_got_timecode.eq(1), prev_got_esc.eq(0)]
                             with m.Else():
                                 m.d.sync += self.o_got_data.eq(1)
                             m.d.sync += self.o_data_char.eq(prev_data_char_wait_parity)
+                            m.d.sync += [prev_got_eop.eq(0), prev_got_eep.eq(0)]
                     with m.Else():
                         m.d.sync += [
                             self.o_parity_error.eq(1)

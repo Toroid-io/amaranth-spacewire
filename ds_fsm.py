@@ -12,6 +12,7 @@ class DS_FSM(Elaboratable):
         self.i_link_disabled = Signal()
         self.i_link_start = Signal()
         self.i_autostart = Signal()
+        self.o_link_error = Signal()
         self.o_tx_ready = Signal()
         self.o_d = Signal()
         self.o_s = Signal()
@@ -180,6 +181,9 @@ class DS_FSM(Elaboratable):
             with m.If(read_in_progress & tr.i_send_fct):
                 with m.If(~(rx_read_counter == 7)):
                     m.d.sync += rx_tokens_count.eq(rx_tokens_count - 1)
+
+        # Link error
+        m.d.comb += self.o_link_error.eq(main_fsm.ongoing("RUN") & (rx_error | tx_credit_error))
 
         return m
 

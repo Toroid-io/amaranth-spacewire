@@ -1,9 +1,9 @@
 [dumpfile] "/home/andres/sources/litex/litex-tests/6_DS_FSM_2/ds_fsm.vcd"
-[dumpfile_size] 11185540
+[dumpfile_size] 11185654
 [treeopen] top.
 @22
-top.i_autostart
-top.fsm.i_link_start
+top.fsm.i_autostart
+top.i_link_start
 top.fsm.i_r_en
 top.fsm.i_reset$3
 top.fsm.i_w_data[7:0]
