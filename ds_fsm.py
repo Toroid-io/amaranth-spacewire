@@ -9,7 +9,9 @@ from ds_sim_utils import *
 class DS_FSM(Elaboratable):
     def __init__(self, srcfreq, txfreq):
         self.i_reset = Signal()
-        self.i_link_enable = Signal()
+        self.i_link_disabled = Signal()
+        self.i_link_start = Signal()
+        self.i_autostart = Signal()
         self.o_tx_ready = Signal()
         self.o_d = Signal()
         self.o_s = Signal()
@@ -41,13 +43,15 @@ class DS_FSM(Elaboratable):
         tx_credit_error = Signal()
         read_in_progress = Signal()
         gotNULL = Signal()
+        link_enabled = Signal()
 
         m.d.comb += [
             self.o_d.eq(tr.o_d),
             self.o_s.eq(tr.o_s),
             rx.i_d.eq(tr.o_d),
             rx.i_s.eq(tr.o_s),
-            rx_error.eq(rx.o_escape_error | rx.o_parity_error | rx.o_read_error | rx.o_disconnect_error)
+            rx_error.eq(rx.o_escape_error | rx.o_parity_error | rx.o_read_error | rx.o_disconnect_error),
+            link_enabled.eq(~self.i_link_disabled & (self.i_link_start | (self.i_autostart & gotNULL)))
         ]
 
         m.submodules.rx_fifo = rx_fifo = SyncFIFOBuffered(width=8, depth=56)
@@ -106,7 +110,7 @@ class DS_FSM(Elaboratable):
                 with m.If((rx_error | (gotNULL & (rx.o_got_fct | rx.o_got_data | rx.o_got_timecode))) == 1):
                     m.d.comb += delay.i_reset.eq(1)
                     m.next = "ErrorReset"
-                with m.Elif(self.i_link_enable == 1):
+                with m.Elif(link_enabled == 1):
                     m.next = "Started"
                 with m.Elif(rx.o_got_null):
                     m.d.sync += gotNULL.eq(1)
@@ -141,7 +145,7 @@ class DS_FSM(Elaboratable):
                 m.d.comb += tr.i_reset.eq(0)
                 m.d.comb += tr_pre_send.eq((tx_fifo.level > 0) & tr.o_ready & (tx_credit > 0) & tx_fifo.r_rdy)
 
-                with m.If((rx_error | tx_credit_error | ~self.i_link_enable) == 1):
+                with m.If((rx_error | tx_credit_error | self.i_link_disabled) == 1):
                     m.d.comb += delay.i_reset.eq(1)
                     # TODO Reset tokens and credits
                     m.next = "ErrorReset"
@@ -180,17 +184,24 @@ class DS_FSM(Elaboratable):
         return m
 
     def ports(self):
-        return [self.i_link_enable, self.o_d, self.o_s]
+        return [
+            self.i_autostart, self.i_link_start, self.i_r_en, self.i_reset,
+            self.i_w_data, self.i_w_en, self.i_link_disabled, self.o_d, self.o_s
+        ]
 
 
 if __name__ == '__main__':
     srcfreq = 50e6
     linkfreq = 45e6
-    i_link_enable = Signal()
+    i_link_disable = Signal()
+    i_autostart = Signal(reset=1)
+    i_link_start = Signal(reset=1)
     m = Module()
     m.submodules.fsm = fsm = DS_FSM(srcfreq, linkfreq)
     m.d.comb += [
-        fsm.i_link_enable.eq(i_link_enable)
+        fsm.i_link_disabled.eq(i_link_disable),
+        fsm.i_link_start.eq(i_link_start),
+        fsm.i_autostart.eq(i_autostart)
     ]
 
     sim = Simulator(m)
@@ -199,7 +210,6 @@ if __name__ == '__main__':
     def test():
         for _ in range(ds_sim_period_to_ticks(25e-6, srcfreq)):
             yield
-        yield i_link_enable.eq(1)
         for _ in range(ds_sim_period_to_ticks(30e-6, srcfreq)):
             yield
         for i in range(40):
