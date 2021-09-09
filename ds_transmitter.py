@@ -16,6 +16,7 @@ class DSTransmitter(Elaboratable):
         self.i_send_esc = Signal()
         self.i_send_eop = Signal()
         self.i_send_eep = Signal()
+        self.i_send_time = Signal()
         self.o_ready = Signal()
         self.o_d = Signal()
         self.o_s = Signal()
@@ -88,6 +89,12 @@ class DSTransmitter(Elaboratable):
                             sr.i_input.eq(char_eep)
                         ]
                         m.next = "WaitTxStartControl"
+                    with m.Elif(self.i_send_time == 1):
+                        m.d.sync += [
+                            sr.i_send_control.eq(1),
+                            sr.i_input.eq(char_esc)
+                        ]
+                        m.next = "SendTimeA"
                     with m.Elif(send_null == 1):
                         m.d.sync += [
                             sr.i_send_control.eq(1),
@@ -116,6 +123,25 @@ class DSTransmitter(Elaboratable):
             with m.State("WaitTxStartData"):
                 with m.If(sr.o_ready == 0):
                     m.d.sync += sr.i_send_data.eq(0)
+                    m.next = "Wait"
+            with m.State("SendTimeA"):
+                with m.If(sr.o_ready == 0):
+                    m.d.sync += [
+                        sr.i_send_control.eq(0),
+                    ]
+                    m.next = "SendTimeB"
+            with m.State("SendTimeB"):
+                with m.If(sr.o_ready == 1):
+                    m.d.sync += [
+                        sr.i_send_data.eq(1),
+                        sr.i_input.eq(self.i_char)
+                    ]
+                    m.next = "SendTimeC"
+            with m.State("SendTimeC"):
+                with m.If(sr.o_ready == 0):
+                    m.d.sync += [
+                        sr.i_send_data.eq(0)
+                    ]
                     m.next = "Wait"
 
             m.d.comb += self.o_ready.eq(tr_fsm.ongoing("Wait") & (sr.o_ready == 1))

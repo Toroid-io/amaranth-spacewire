@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.3.109 (w)1999-2020 BSI
-[*] Thu Sep  2 21:47:24 2021
+[*] Wed Sep  8 17:56:46 2021
 [*]
 [dumpfile] "/home/andres/sources/litex/litex-tests/6_DS_FSM_2/ds_fsm.vcd"
-[dumpfile_mtime] "Thu Sep  2 21:46:57 2021"
-[dumpfile_size] 4949871
+[dumpfile_mtime] "Wed Sep  8 17:50:26 2021"
+[dumpfile_size] 11341858
 [savefile] "/home/andres/sources/litex/litex-tests/6_DS_FSM_2/ds_fsm_viewer.gtkw"
-[timestart] 48800000
+[timestart] 50580000
 [size] 1920 1031
 [pos] -1 -1
-*-22.000000 53100000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-24.000000 105500000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] top.
 [treeopen] top.fsm.
 [treeopen] top.fsm.rx.control_sr.
@@ -18,7 +18,7 @@
 [sst_width] 284
 [signals_width] 330
 [sst_expanded] 1
-[sst_vpaned_height] 282
+[sst_vpaned_height] 588
 @28
 top.fsm.clk
 top.fsm.tr.tx_clk
@@ -32,8 +32,10 @@ top.fsm.tr.fsm_state
 top.fsm.tr.sr.o_ready
 top.fsm.fsm_state
 top.fsm.rx.o_got_null
-top.fsm.i_link_enable
 top.fsm.rx.o_got_fct
+@29
+top.fsm.rx.o_got_timecode
+@28
 top.fsm.rx.o_parity_error
 top.fsm.rx.o_read_error
 top.fsm.rx.o_got_data
@@ -49,16 +51,12 @@ top.fsm.tr.sr.i_reset
 top.fsm.tr.encoder.i_reset
 top.fsm.i_w_en
 top.fsm.w_rdy
-top.fsm.tx_can_send_char
 top.fsm.tr.i_send_data
-@24
-top.fsm.tx_fifo.level[4:0]
-@28
 top.fsm.tx_fifo.r_rdy
 top.fsm.tr.o_ready
 top.fsm.tx_fifo.r_en
 top.fsm.rx.o_got_data
-@821
+@820
 top.fsm.rx.o_data_char[7:0]
 @28
 top.fsm.rx_fifo.w_en
@@ -66,9 +64,6 @@ top.fsm.rx_fifo.w_en
 top.fsm.rx_fifo.w_data[7:0]
 @28
 top.fsm.rx_fifo.w_rdy
-@22
-top.fsm.rx_fifo.w_level[4:0]
-@28
 top.fsm.i_r_en
 top.fsm.o_r_rdy
 @820
@@ -81,8 +76,5 @@ top.fsm.rx_read_counter[2:0]
 (2)top.fsm.rx_read_counter[2:0]
 @1401200
 -group_end
-@24
-top.fsm.rx_tokens_count[1:0]
-top.fsm.tx_credit[4:0]
 [pattern_trace] 1
 [pattern_trace] 0
