@@ -89,6 +89,11 @@ class DS_FSM(Elaboratable):
             with m.State("ErrorReset"):
                 m.d.comb += rx.i_reset.eq(1)
                 m.d.comb += tr.i_reset.eq(1)
+                m.d.sync += [
+                    rx_tokens_count.eq(7),
+                    tx_credit.eq(0),
+                    gotNULL.eq(0),
+                ]
 
                 with m.If(self.i_reset):
                     pass
@@ -138,6 +143,7 @@ class DS_FSM(Elaboratable):
             with m.State("Connecting"):
                 m.d.comb += rx.i_reset.eq(0)
                 m.d.comb += tr.i_reset.eq(0)
+                m.d.comb += tr.i_send_fct.eq((rx_tokens_count > 0) & (tr.o_ready == 1))
 
                 with m.If((rx_error | rx.o_got_data | rx.o_got_timecode | delay.o_elapsed) == 1):
                     m.d.comb += delay.i_reset.eq(1)
@@ -163,6 +169,8 @@ class DS_FSM(Elaboratable):
                             tr.i_send_time.eq(1),
                             tr.i_char.eq(time_counter)
                         ]
+                    with m.Elif((rx_tokens_count > 0) & (tr.o_ready == 1)):
+                        m.d.comb += tr.i_send_fct.eq(1)
                     with m.Else():
                         m.d.comb += [
                             tx_fifo.r_en.eq(tr_pre_send),
@@ -172,8 +180,6 @@ class DS_FSM(Elaboratable):
 
         # Tokens and credit management
         with m.If(main_fsm.ongoing("Connecting") | main_fsm.ongoing("Run")):
-            m.d.comb += tr.i_send_fct.eq((rx_tokens_count > 0) & (tr.o_ready == 1))
-
             with m.If(tr.i_send_char & ~rx.o_got_fct):
                 m.d.sync += tx_credit.eq(tx_credit - 1)
             with m.Elif(rx.o_got_fct & (tx_credit > (56 - 8))):
