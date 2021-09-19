@@ -1,7 +1,0 @@
-[dumpfile] "/home/andres/sources/litex/litex-tests/6_DS_FSM_2/ds_disconnect.vcd"
-[dumpfile_size] 15404
-[treeopen] top.
-@22
-top.disc.i_reset
-top.disc.i_store_en
-top.disc.o_disconnected

@@ -1,13 +1,13 @@
 from nmigen import *
 from nmigen.sim import Simulator, Delay
-from ds_char_shift_register import DSOutputCharShiftRegister
-from ds import DSEncoder
-from clk_div import ClockDivider
+from .ds_shift_registers import DSOutputCharSR
+from .ds_encoder import DSEncoder
+from .clock_divider import ClockDivider
 from bitarray import bitarray
+from nmigen_boards.de0_nano import DE0NanoPlatform
 
 
-# TODO: self.i_send_timecode
-class DSTransmitter(Elaboratable):
+class SpWTransmitter(Elaboratable):
     def __init__(self, srcfreq, txfreq):
         self.i_reset = Signal()
         self.i_char = Signal(8)
@@ -30,7 +30,7 @@ class DSTransmitter(Elaboratable):
         m.domains.tx = ClockDomain("tx", local=True)
         m.d.comb += ClockSignal("tx").eq(tr_clk.o)
         m.submodules.encoder = encoder = DomainRenamer("tx")(DSEncoder())
-        m.submodules.sr = sr = DomainRenamer("tx")(DSOutputCharShiftRegister())
+        m.submodules.sr = sr = DomainRenamer("tx")(DSOutputCharSR())
 
         char_fct = Signal(8, reset=0b00000000)
         char_esc = Signal(8, reset=0b00000011)
@@ -163,7 +163,7 @@ if __name__ == '__main__':
     i_send_eop = Signal()
     i_send_fct = Signal()
     m = Module()
-    m.submodules.tr = tr = DSTransmitter(1e6, 0.25e6)
+    m.submodules.tr = tr = SpWTransmitter(1e6, 0.25e6)
     m.d.comb += [
         tr.i_char.eq(i_char),
         tr.i_reset.eq(i_reset),
@@ -208,5 +208,30 @@ if __name__ == '__main__':
             yield
 
     sim.add_sync_process(test)
-    with sim.write_vcd("ds_transmitter.vcd", "ds_transmitter.gtkw", traces=tr.ports()):
+    with sim.write_vcd("vcd/spw_transmitter.vcd", "gtkw/spw_transmitter.gtkw", traces=tr.ports()):
         sim.run()
+
+    pl = DE0NanoPlatform()
+    class TOP(Elaboratable):
+        def __init__(self, linkfreq):
+            self._linkfreq = linkfreq
+
+        def elaborate(self, pl):
+            m = Module()
+            m.submodules.tr = tr = SpWTransmitter(pl.default_clk_frequency, self._linkfreq)
+            m.d.comb += [
+                tr.i_reset.eq(0),
+                tr.i_char.eq(0),
+                tr.i_send_char.eq(0),
+                tr.i_send_fct.eq(0),
+                tr.i_send_esc.eq(0),
+                tr.i_send_eop.eq(0),
+                tr.i_send_eep.eq(0),
+                tr.i_send_time.eq(0),
+                pl.request('led', 0).eq(tr.o_d),
+                pl.request('led', 1).eq(tr.o_s),
+                pl.request('led', 2).eq(tr.o_ready)
+            ]
+            return m
+
+    DE0NanoPlatform().build(TOP(1), do_program=True)

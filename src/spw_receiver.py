@@ -1,14 +1,14 @@
 from nmigen import *
 from nmigen.sim import Simulator, Delay
-from ds_char_shift_register import DSCharControlShiftRegister, DSCharDataShiftRegister
-from ds import DSDecoder
-from store_enable import DSStoreEnable
-from ds_disconnect import DSDisconnect
-from ds_sim_utils import *
+from .ds_shift_registers import DSInputControlCharSR, DSInputDataCharSR
+from .ds_decoder import DSDecoder
+from .ds_store_enable import DSStoreEnable
+from .spw_disconnect_detector import SpWDisconnectDetector
+from .spw_sim_utils import *
 
 
-class DSReceiver(Elaboratable):
-    def __init__(self, srcfreq):
+class SpWReceiver(Elaboratable):
+    def __init__(self, srcfreq, disconnect_delay=850e-9):
         self.i_d = Signal()
         self.i_s = Signal()
         self.i_reset = Signal()
@@ -24,15 +24,17 @@ class DSReceiver(Elaboratable):
         self.o_read_error = Signal()
         self.o_escape_error = Signal()
         self.o_disconnect_error = Signal()
+
         self._srcfreq = srcfreq
+        self._disconnect_delay = disconnect_delay
 
     def elaborate(self, platform):
         m = Module()
         m.submodules.decoder = decoder = DSDecoder()
         m.submodules.store_en = store_en = DSStoreEnable()
-        m.submodules.control_sr = control_sr = DSCharControlShiftRegister()
-        m.submodules.data_sr = data_sr = DSCharDataShiftRegister()
-        m.submodules.disc = disc = DSDisconnect(self._srcfreq)
+        m.submodules.control_sr = control_sr = DSInputControlCharSR()
+        m.submodules.data_sr = data_sr = DSInputDataCharSR()
+        m.submodules.disc = disc = SpWDisconnectDetector(self._srcfreq, self._disconnect_delay)
 
         # Counter used to read 4 by 4 the shift register output.
         counter = Signal(4)
@@ -44,14 +46,6 @@ class DSReceiver(Elaboratable):
         counter_full = Signal()
         # Last known parity running without errors.
         parity_prev = Signal()
-        # Parity of the current control or data character (holding information
-        # about the *prev*ious received character). This value is the same for
-        # control/data because they are the first two bits of each shift
-        # register.
-        parity_char_prev = Signal()
-        # Parity computed using the previous stored parity and the received bits
-        # of the shift registers. It should always be '1'.
-        parity_check = Signal()
         # Parity of the current control character (to be checked with the *next*
         # received character).
         parity_control_next = Signal()
@@ -77,8 +71,6 @@ class DSReceiver(Elaboratable):
         with m.If(self.i_reset):
             m.d.comb += [
                 counter_full.eq(0),
-                parity_char_prev.eq(0),
-                parity_check.eq(0),
                 parity_control_next.eq(0),
                 parity_data_next.eq(0)
             ]
@@ -110,7 +102,6 @@ class DSReceiver(Elaboratable):
             data_sr.i_store.eq(store_en.o_store_en),
             parity_control_next.eq(control_sr.o_parity_next),
             parity_data_next.eq(data_sr.o_parity_next),
-            parity_check.eq(parity_prev ^ parity_char_prev),
             disc.i_store_en.eq(store_en.o_store_en),
             disc.i_reset.eq(self.i_reset),
             self.o_disconnect_error.eq(disc.o_disconnected)
@@ -259,7 +250,7 @@ if __name__ == '__main__':
         i_reset = Signal(reset=1)
 
         m = Module()
-        m.submodules.rv = rv = DSReceiver(srcfreq)
+        m.submodules.rv = rv = SpWReceiver(srcfreq)
         m.d.comb += [
             rv.i_d.eq(i_d),
             rv.i_s.eq(i_s),
@@ -302,7 +293,7 @@ if __name__ == '__main__':
 
         sim.add_process(decoder_test)
         sim.add_sync_process(reset_manage)
-        with sim.write_vcd("ds_receiver.vcd", "ds_receiver.gtkw", traces=rv.ports()):
+        with sim.write_vcd("vcd/spw_receiver.vcd", "gtkw/spw_receiver.gtkw", traces=rv.ports()):
             sim.run_until(2e-3)
 
 

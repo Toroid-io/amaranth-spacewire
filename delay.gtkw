@@ -1,7 +1,0 @@
-[dumpfile] "/home/andres/sources/litex/litex-tests/6_DS_FSM_2/delay.vcd"
-[dumpfile_size] 3014
-[treeopen] top.
-@22
-top.i_start
-top.delay.o_elapsed
-top.delay.o_half_elapsed

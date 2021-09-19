@@ -1,14 +1,15 @@
 from nmigen import *
 from nmigen.lib.fifo import SyncFIFOBuffered
 from nmigen.sim import Simulator
-from ds_transmitter import DSTransmitter
-from ds_receiver import DSReceiver
-from ds_delay import DSDelay
-from ds_sim_utils import *
+from .spw_transmitter import SpWTransmitter
+from .spw_receiver import SpWReceiver
+from .spw_delay import SpWDelay
+from .spw_sim_utils import *
 import math
+from nmigen_boards.de0_nano import DE0NanoPlatform
 
-class DS_FSM(Elaboratable):
-    def __init__(self, srcfreq, txfreq, time_master=True):
+class SpWNode(Elaboratable):
+    def __init__(self, srcfreq, txfreq, transission_delay=12.8e-6, disconnect_delay=850e-9, time_master=True):
         self.i_reset = Signal()
         self.i_d = Signal()
         self.i_s = Signal()
@@ -34,14 +35,16 @@ class DS_FSM(Elaboratable):
 
         self._srcfreq = srcfreq
         self._txfreq = txfreq
+        self._transission_delay = transission_delay
+        self._disconnect_delay = disconnect_delay
         self._time_master = time_master
 
     def elaborate(self, platform):
         m = Module()
 
-        m.submodules.tr = tr = DSTransmitter(self._srcfreq, self._txfreq)
-        m.submodules.rx = rx = DSReceiver(self._srcfreq)
-        m.submodules.delay = delay = DSDelay(self._srcfreq, 12.8e-6, strategy='at_least')
+        m.submodules.tr = tr = SpWTransmitter(self._srcfreq, self._txfreq)
+        m.submodules.rx = rx = SpWReceiver(self._srcfreq, self._disconnect_delay)
+        m.submodules.delay = delay = SpWDelay(self._srcfreq, self._transission_delay, strategy='at_least')
 
         tr_pre_send = Signal()
         rx_error = Signal()
@@ -78,11 +81,6 @@ class DS_FSM(Elaboratable):
             self.o_w_rdy.eq(tx_fifo.w_rdy),
 
             read_in_progress.eq(self.i_r_en & rx_fifo.r_rdy)
-        ]
-
-        m.d.sync += [
-            tr.i_send_eop.eq(0),
-            tr.i_send_eep.eq(0)
         ]
 
         with m.FSM() as main_fsm:
@@ -205,7 +203,6 @@ class DS_FSM(Elaboratable):
         m.d.comb += self.o_link_error.eq(main_fsm.ongoing("RUN") & (rx_error | tx_credit_error))
 
         # Time management
-        # TODO: Master/Slave, tick_out, control flags
         with m.If(self.i_reset):
             m.d.sync += time_counter.eq(0)
         with m.Elif(self.i_tick & self._time_master):
@@ -246,7 +243,7 @@ if __name__ == '__main__':
     i_link_start = Signal(reset=1)
     i_tick = Signal()
     m = Module()
-    m.submodules.fsm = fsm = DS_FSM(srcfreq, linkfreq)
+    m.submodules.fsm = fsm = SpWNode(srcfreq, linkfreq)
     m.d.comb += [
         fsm.i_link_disabled.eq(i_link_disable),
         fsm.i_link_start.eq(i_link_start),
@@ -294,5 +291,5 @@ if __name__ == '__main__':
     sim.add_sync_process(test)
     sim.add_sync_process(read_from_fifo)
     sim.add_sync_process(tick_process)
-    with sim.write_vcd("ds_fsm.vcd", "ds_fsm.gtkw", traces=fsm.ports()):
+    with sim.write_vcd("vcd/spw_node.vcd", "gtkw/spw_node.gtkw", traces=fsm.ports()):
         sim.run_until(1200e-6)

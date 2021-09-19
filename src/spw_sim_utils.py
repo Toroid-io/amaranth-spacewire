@@ -28,7 +28,7 @@ def ds_sim_send_d(i_d, i_s, d):
         prev_s = not prev_s
         yield i_s.eq(prev_s)
     prev_d = d
-    yield Delay(100e-9)
+    yield Delay(0.5e-6)
 
 def ds_sim_send_char(i_d, i_s, b):
     global prev_parity

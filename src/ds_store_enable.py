@@ -1,6 +1,6 @@
 from nmigen import *
 from nmigen.sim import Simulator, Delay
-from pulse_generator import PulseGenerator
+from .pulse_generator import PulseGenerator
 
 
 class DSStoreEnable(Elaboratable):
@@ -82,5 +82,5 @@ if __name__ == '__main__':
     sim.add_clock(1e-6)
     sim.add_process(test)
 
-    with sim.write_vcd("store_enable.vcd", "store_enable.gtkw", traces=sten.ports()):
+    with sim.write_vcd("vcd/ds_store_enable.vcd", "gtkw/ds_store_enable.gtkw", traces=sten.ports()):
         sim.run()

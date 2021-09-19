@@ -1,19 +1,22 @@
 from nmigen import *
 from nmigen.sim import Simulator
-from ds_delay import DSDelay
-from ds_sim_utils import *
+from .spw_delay import SpWDelay
+from .spw_sim_utils import *
 
-class DSDisconnect(Elaboratable):
-    def __init__(self, srcfreq):
+
+class SpWDisconnectDetector(Elaboratable):
+    def __init__(self, srcfreq, disconnect_delay=850e-9):
         self.i_reset = Signal()
         self.i_store_en = Signal()
         self.o_disconnected = Signal()
+
         self._srcfreq = srcfreq
+        self._disconnect_delay = disconnect_delay
 
     def elaborate(self, platform):
         m = Module()
 
-        m.submodules.delay = delay = DSDelay(self._srcfreq, 850e-9, strategy='at_most')
+        m.submodules.delay = delay = SpWDelay(self._srcfreq, self._disconnect_delay, strategy='at_most')
 
         m.d.comb += [
             delay.i_start.eq(1),
@@ -45,7 +48,7 @@ if __name__ == '__main__':
     i_store_en = Signal()
 
     m = Module()
-    m.submodules.disc = disc = DSDisconnect(srcfreq)
+    m.submodules.disc = disc = SpWDisconnectDetector(srcfreq)
     m.d.comb += [
         disc.i_reset.eq(i_reset),
         disc.i_store_en.eq(i_store_en)
@@ -71,5 +74,5 @@ if __name__ == '__main__':
     sim.add_clock(1/srcfreq)
     sim.add_sync_process(test)
 
-    with sim.write_vcd("ds_disconnect.vcd", "ds_disconnect.gtkw", traces=disc.ports()):
+    with sim.write_vcd("vcd/spw_disconnect_detector.vcd", "gtkw/spw_disconnect_detector.gtkw", traces=disc.ports()):
         sim.run()

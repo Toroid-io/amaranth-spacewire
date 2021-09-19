@@ -20,7 +20,7 @@ def _ticksForDelay(freq, delay, max_ppm=None, strategy='at_most'):
 
     return ticks
 
-class DSDelay(Elaboratable):
+class SpWDelay(Elaboratable):
     def __init__(self, srcfreq, delay, strategy='at_least'):
         self.i_start = Signal()
         self.i_reset = Signal()
@@ -69,7 +69,7 @@ class DSDelay(Elaboratable):
 if __name__ == '__main__':
     i_start = Signal()
     m = Module()
-    m.submodules.delay = delay = DSDelay(1.3e6, 34e-6)
+    m.submodules.delay = delay = SpWDelay(1.3e6, 34e-6)
     m.d.comb += delay.i_start.eq(i_start)
 
     sim = Simulator(m)
@@ -88,5 +88,5 @@ if __name__ == '__main__':
             yield
 
     sim.add_sync_process(test)
-    with sim.write_vcd("delay.vcd", "delay.gtkw", traces=delay.ports()):
+    with sim.write_vcd("vcd/spw_delay.vcd", "gtkw/spw_delay.gtkw", traces=delay.ports()):
         sim.run()

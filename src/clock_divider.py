@@ -2,6 +2,7 @@ from nmigen import *
 from nmigen.utils import bits_for
 from nmigen.sim import Simulator
 
+
 def _divisor(freq_in, freq_out, max_ppm=None):
     divisor = freq_in // freq_out
     if divisor <= 0:
@@ -46,5 +47,5 @@ if __name__ == '__main__':
     sim = Simulator(dut)
     sim.add_clock(1e-6)
     sim.add_sync_process(test)
-    with sim.write_vcd("divider.vcd"):
+    with sim.write_vcd("vcd/clock_divider.vcd"):
         sim.run()

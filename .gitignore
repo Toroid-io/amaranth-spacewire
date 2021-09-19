@@ -1,2 +1,6 @@
 *.vcd
 __pycache__
+vcd/*
+*.gtkw
+gtkw/*
+gtkw_viewers/*

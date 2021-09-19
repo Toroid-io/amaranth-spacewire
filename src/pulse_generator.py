@@ -47,5 +47,5 @@ if __name__ == '__main__':
         yield
 
     sim.add_sync_process(test)
-    with sim.write_vcd("pulse_gen.vcd", "pulse_gen.gtkw", traces=pg.ports()):
+    with sim.write_vcd("vcd/pulse_generator.vcd", "gtkw/pulse_generator.gtkw", traces=pg.ports()):
         sim.run()

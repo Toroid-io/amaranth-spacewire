@@ -2,10 +2,15 @@ from nmigen import *
 from nmigen.utils import bits_for
 from nmigen.sim import Simulator
 
-from ds_char_definitions import *
+#                             MSB-LSB
+DS_CHAR_FCT_MATCHER         = '001-'
+DS_CHAR_EOP_NORMAL_MATCHER  = '101-'
+DS_CHAR_EOP_ERROR_MATCHER   = '011-'
+DS_CHAR_ESC_MATCHER         = '111-'
+DS_CHAR_DATA_MATCHER        = '--------0-'
 
 
-class DSOutputCharShiftRegister(Elaboratable):
+class DSOutputCharSR(Elaboratable):
     def __init__(self):
         self.i_reset = Signal()
         self.i_input = Signal(8)
@@ -20,12 +25,10 @@ class DSOutputCharShiftRegister(Elaboratable):
         char_to_send = Signal(8)
         counter = Signal(4)
         counter_limit = Signal(4)
-        counter_full = Signal()
         parity_prev = Signal()
         parity_to_send = Signal()
         send_control = Signal()
 
-        m.d.comb += counter_full.eq(counter == counter_limit)
         with m.If(self.i_send_control == 1):
             m.d.comb += parity_to_send.eq(~(parity_prev ^ 1))
         with m.Else():
@@ -103,7 +106,7 @@ class DSOutputCharShiftRegister(Elaboratable):
                 self.o_output, self.o_ready]
 
 
-class DSInputCharShiftRegister(Elaboratable):
+class DSInputCharSR(Elaboratable):
     def __init__(self, size):
         self.i_input = Signal()
         self.i_store = Signal()
@@ -124,7 +127,7 @@ class DSInputCharShiftRegister(Elaboratable):
         return [self.i_input, self.i_store, self.o_contents]
 
 
-class DSCharControlShiftRegister(Elaboratable):
+class DSInputControlCharSR(Elaboratable):
     def __init__(self):
         self.i_input = Signal()
         self.i_store = Signal()
@@ -134,19 +137,17 @@ class DSCharControlShiftRegister(Elaboratable):
         self.o_detected_eop = Signal()
         self.o_detected_eep = Signal()
         self.o_detected_esc = Signal()
-        self.o_parity_prev = Signal()
         self.o_parity_next = Signal()
 
     def elaborate(self, platform):
         m = Module()
 
-        m.submodules.sr = sr = DSInputCharShiftRegister(4)
+        m.submodules.sr = sr = DSInputCharSR(4)
 
         m.d.comb += [
             sr.i_input.eq(self.i_input),
             sr.i_store.eq(self.i_store),
             self.o_char.eq(sr.o_contents),
-            self.o_parity_prev.eq(sr.o_contents[0] ^ sr.o_contents[1]),
             self.o_parity_next.eq(sr.o_contents[-1] ^ sr.o_contents[-2]),
             self.o_detected.eq(self.o_detected_eep | self.o_detected_eop | self.o_detected_esc | self.o_detected_fct)
         ]
@@ -174,16 +175,15 @@ class DSCharControlShiftRegister(Elaboratable):
         return [
             self.i_store, self.i_input, self.o_char, self.o_detected_fct,
             self.o_detected_eop, self.o_detected_eep,
-            self.o_detected_esc, self.o_parity_prev, self.o_parity_next
+            self.o_detected_esc, self.o_parity_next
         ]
 
 
-class DSCharDataShiftRegister(Elaboratable):
+class DSInputDataCharSR(Elaboratable):
     def __init__(self):
         self.i_input = Signal()
         self.i_store = Signal()
         self.o_char = Signal(10)
-        self.o_parity_prev = Signal()
         self.o_parity_next = Signal()
         self.o_detected = Signal()
 
@@ -191,13 +191,12 @@ class DSCharDataShiftRegister(Elaboratable):
         parities = Array([Signal() for _ in range(7)])
         m = Module()
 
-        m.submodules.sr = sr = DSInputCharShiftRegister(10)
+        m.submodules.sr = sr = DSInputCharSR(10)
 
         m.d.comb += [
             sr.i_input.eq(self.i_input),
             sr.i_store.eq(self.i_store),
-            self.o_char.eq(sr.o_contents),
-            self.o_parity_prev.eq(sr.o_contents[0] ^ sr.o_contents[1])
+            self.o_char.eq(sr.o_contents)
         ]
 
         m.d.comb += parities[0].eq(sr.o_contents[2] ^ sr.o_contents[3])
@@ -216,7 +215,7 @@ class DSCharDataShiftRegister(Elaboratable):
     def ports(self):
         return [
             self.i_store, self.i_input, self.o_char, self.o_detected,
-            self.o_parity_prev, self.o_parity_next
+            self.o_parity_next
         ]
 
 
@@ -225,7 +224,7 @@ if __name__ == '__main__':
         i_input = Signal()
         i_store = Signal()
         m = Module()
-        m.submodules.sr = sr = DSInputCharShiftRegister(4)
+        m.submodules.sr = sr = DSInputCharSR(4)
         m.d.comb += [
             sr.i_input.eq(i_input),
             sr.i_store.eq(i_store)
@@ -258,14 +257,14 @@ if __name__ == '__main__':
         sim.add_clock(1e-6)
         sim.add_sync_process(test)
 
-        with sim.write_vcd("ds_char_base_sr.vcd", "ds_char_base_sr.gtkw", traces=sr.ports()):
+        with sim.write_vcd("vcd/ds_input_char_sr.vcd", "gtkw/ds_input_char_sr.gtkw", traces=sr.ports()):
             sim.run()
 
     def test_control_sr():
         i_input = Signal()
         i_store = Signal()
         m = Module()
-        m.submodules.sr = sr = DSCharControlShiftRegister()
+        m.submodules.sr = sr = DSInputControlCharSR()
         m.d.comb += [
             sr.i_input.eq(i_input),
             sr.i_store.eq(i_store)
@@ -298,14 +297,14 @@ if __name__ == '__main__':
         sim.add_clock(1e-6)
         sim.add_sync_process(test)
 
-        with sim.write_vcd("ds_char_control_sr.vcd", "ds_char_control_sr.gtkw", traces=sr.ports()):
+        with sim.write_vcd("vcd/ds_input_control_char_sr.vcd", "gtkw/ds_input_control_char_sr.gtkw", traces=sr.ports()):
             sim.run()
 
     def test_data_sr():
         i_input = Signal()
         i_store = Signal()
         m = Module()
-        m.submodules.sr = sr = DSCharDataShiftRegister()
+        m.submodules.sr = sr = DSInputDataCharSR()
         m.d.comb += [
             sr.i_input.eq(i_input),
             sr.i_store.eq(i_store)
@@ -340,7 +339,7 @@ if __name__ == '__main__':
         sim.add_clock(1e-6)
         sim.add_sync_process(test)
 
-        with sim.write_vcd("ds_char_data_sr.vcd", "ds_char_data_sr.gtkw", traces=sr.ports()):
+        with sim.write_vcd("vcd/ds_input_data_char_sr.vcd", "gtkw/ds_input_data_char_sr.gtkw", traces=sr.ports()):
             sim.run()
 
     def test_output_sr():
@@ -349,7 +348,7 @@ if __name__ == '__main__':
         i_send_data = Signal()
         i_send_control = Signal()
         m = Module()
-        m.submodules.sr = sr = DSOutputCharShiftRegister()
+        m.submodules.sr = sr = DSOutputCharSR()
         m.d.comb += [
             sr.i_input.eq(i_input),
             sr.i_send_control.eq(i_send_control),
@@ -406,7 +405,7 @@ if __name__ == '__main__':
         sim.add_clock(1e-6)
         sim.add_sync_process(test)
 
-        with sim.write_vcd("ds_output_char_sr.vcd", "ds_output_char_sr.gtkw", traces=sr.ports()):
+        with sim.write_vcd("vcd/ds_output_char_sr.vcd", "gtkw/ds_output_char_sr.gtkw", traces=sr.ports()):
             sim.run()
 
     test_base_sr()
