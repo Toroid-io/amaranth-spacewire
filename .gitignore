@@ -4,3 +4,4 @@ vcd/*
 *.gtkw
 gtkw/*
 gtkw_viewers/*
+build/
