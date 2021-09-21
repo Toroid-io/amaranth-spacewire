@@ -5,6 +5,7 @@ from nmigen.sim import Simulator
 class PulseGenerator(Elaboratable):
     def __init__(self):
         self.i_en = Signal()
+        self.i_reset = Signal()
         self.o_pulse = Signal()
 
     def elaborate(self, platform):
@@ -12,11 +13,11 @@ class PulseGenerator(Elaboratable):
 
         with m.FSM() as fsm:
             with m.State("IDLE"):
-                with m.If(self.i_en == 1):
+                with m.If(~self.i_reset & self.i_en):
                     m.d.comb += self.o_pulse.eq(1)
                     m.next = "PULSE"
             with m.State("PULSE"):
-                with m.If(self.i_en == 0):
+                with m.If(self.i_reset | ~self.i_en):
                     m.next = "IDLE"
 
         return m
@@ -27,9 +28,13 @@ class PulseGenerator(Elaboratable):
 
 if __name__ == '__main__':
     i_en = Signal()
+    i_reset = Signal()
     m = Module()
     m.submodules.pg = pg = PulseGenerator()
-    m.d.comb += pg.i_en.eq(i_en)
+    m.d.comb += [
+        pg.i_en.eq(i_en),
+        pg.i_reset.eq(i_reset)
+    ]
 
     sim = Simulator(m)
     sim.add_clock(1e-6)

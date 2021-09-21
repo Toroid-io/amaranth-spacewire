@@ -14,6 +14,7 @@ class DSDecoder(Elaboratable):
         stable_ds_even = Signal()
         stable_ds_odd = Signal()
         stable_xor = Signal()
+        stable_d = Signal()
         # Decoding following "RACE C ONDITION FREE SPACEWIRE DECODER FOR FPGA"
         # http://2010.spacewire-conference.org/proceedings/Papers/Components/Nomachi.pdf
 
@@ -38,11 +39,13 @@ class DSDecoder(Elaboratable):
 
         # DDR handling
         with m.If(stable_xor == 0):
-            m.d.comb += self.o_d.eq(stable_ds_odd)
+            m.d.comb += stable_d.eq(stable_ds_odd)
         with m.Else():
-            m.d.comb += self.o_d.eq(stable_ds_even)
+            m.d.comb += stable_d.eq(stable_ds_even)
 
-        m.d.comb += self.o_clk_ddr.eq(stable_xor)
+        # Add one register to avoid metastability
+        m.d.sync += self.o_clk_ddr.eq(stable_xor)
+        m.d.sync += self.o_d.eq(stable_d)
 
         return m
 
@@ -60,7 +63,7 @@ if __name__ == '__main__':
     mdec.d.comb += dec.i_s.eq(i_s_dec)
 
     simdec = Simulator(mdec)
-    simdec.add_clock(1e-6)
+    simdec.add_clock(0.5e-6)
 
     def ds_set(d, s):
         yield i_d_dec.eq(d)
@@ -83,5 +86,5 @@ if __name__ == '__main__':
         yield from ds_send_null()
 
     simdec.add_process(decoder_test)
-    with simdec.write_vcd("vcd/ds_decoder.vcd", "ds_decoder.gtkw", traces=dec.ports()):
+    with simdec.write_vcd("vcd/ds_decoder.vcd", "gtkw/ds_decoder.gtkw", traces=dec.ports()):
         simdec.run()

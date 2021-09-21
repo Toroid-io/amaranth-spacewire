@@ -50,7 +50,7 @@ def ds_sim_char_to_bits(c):
 def ds_sim_period_to_ticks(p, srcfreq):
     return math.ceil(p * srcfreq)
 
-def ds_sim_send_d(i_d, i_s, d, wait=0.5e-6):
+def ds_sim_send_d(i_d, i_s, d, bit_time=0.5e-6):
     global prev_d
     global prev_s
     yield i_d.eq(d)
@@ -60,7 +60,7 @@ def ds_sim_send_d(i_d, i_s, d, wait=0.5e-6):
         prev_s = not prev_s
         yield i_s.eq(prev_s)
     prev_d = d
-    yield Delay(wait)
+    yield Delay(bit_time)
 
 def ds_sim_send_char(i_d, i_s, b):
     global prev_parity
@@ -89,20 +89,20 @@ def ds_sim_send_int(i_d, i_s, b):
     for i in range(8):
         yield from ds_sim_send_d(i_d, i_s, data[i])
 
-def ds_sim_send_null(i_d, i_s):
+def ds_sim_send_null(i_d, i_s, bit_time=0.5e-6):
     global prev_parity
     parity = not (prev_parity ^ True)
     prev_parity = False
-    yield from ds_sim_send_d(i_d, i_s, parity)
-    yield from ds_sim_send_d(i_d, i_s, 1)
-    yield from ds_sim_send_d(i_d, i_s, 1)
-    yield from ds_sim_send_d(i_d, i_s, 1)
+    yield from ds_sim_send_d(i_d, i_s, parity, bit_time)
+    yield from ds_sim_send_d(i_d, i_s, 1, bit_time)
+    yield from ds_sim_send_d(i_d, i_s, 1, bit_time)
+    yield from ds_sim_send_d(i_d, i_s, 1, bit_time)
     parity = not (prev_parity ^ True)
     prev_parity = False
-    yield from ds_sim_send_d(i_d, i_s, parity)
-    yield from ds_sim_send_d(i_d, i_s, 1)
-    yield from ds_sim_send_d(i_d, i_s, 0)
-    yield from ds_sim_send_d(i_d, i_s, 0)
+    yield from ds_sim_send_d(i_d, i_s, parity, bit_time)
+    yield from ds_sim_send_d(i_d, i_s, 1, bit_time)
+    yield from ds_sim_send_d(i_d, i_s, 0, bit_time)
+    yield from ds_sim_send_d(i_d, i_s, 0, bit_time)
 
 def ds_sim_send_timecode(i_d, i_s, code):
     global prev_parity
