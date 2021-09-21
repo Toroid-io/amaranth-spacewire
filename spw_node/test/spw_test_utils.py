@@ -5,6 +5,10 @@ import math
 import sys, os, inspect
 from pathlib import Path
 
+LATENCY_BIT_START_TO_STORE_EN = 3
+LATENCY_BIT_START_TO_SR_UPDATED = LATENCY_BIT_START_TO_STORE_EN + 1
+LATENCY_BIT_START_TO_SYMBOL_DETECTED = LATENCY_BIT_START_TO_SR_UPDATED + 1
+
 def add_module_to_path():
     frame = inspect.stack()[1]
     module = inspect.getmodule(frame[0])

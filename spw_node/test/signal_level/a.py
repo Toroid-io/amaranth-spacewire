@@ -1,10 +1,7 @@
 from nmigen import *
 from nmigen.sim import Simulator, Delay, Settle
 from spw_node.src.spw_receiver import SpWReceiver
-from spw_node.test.spw_test_utils import (
-    ds_sim_send_d, get_vcd_filename, get_gtkw_filename,
-    ds_sim_send_null
-)
+from spw_node.test.spw_test_utils import *
 
 def test_6_3_2_a():
 
@@ -12,9 +9,6 @@ def test_6_3_2_a():
     SIMSTART = 20e-6
     BIT_TIME = 0.5e-6
     CHAR_TIME = BIT_TIME * 4
-    LATENCY_BIT_START_TO_STORE_EN = 3
-    LATENCY_BIT_START_TO_SR_UPDATED = LATENCY_BIT_START_TO_STORE_EN + 1
-    LATENCY_BIT_START_TO_SYMBOL_DETECTED = LATENCY_BIT_START_TO_SR_UPDATED + 1
 
     dut = SpWReceiver(SRCFREQ, 1)
 
