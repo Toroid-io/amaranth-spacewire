@@ -88,3 +88,5 @@ def test_6_3_2_a():
 
     with sim.write_vcd(get_vcd_filename(), get_gtkw_filename(), traces=dut.ports()):
         sim.run_until(50e-6)
+
+tests = [test_6_3_2_a] # , test_...
