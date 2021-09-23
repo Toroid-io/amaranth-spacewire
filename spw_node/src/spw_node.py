@@ -1,3 +1,4 @@
+import enum
 from nmigen import *
 from nmigen.lib.fifo import SyncFIFOBuffered
 from nmigen.sim import Simulator
@@ -8,8 +9,18 @@ from .spw_sim_utils import *
 import math
 from nmigen_boards.de0_nano import DE0NanoPlatform
 
+
+class SpWNodeFSMStates(enum.Enum):
+    ERROR_RESET = 0
+    ERROR_WAIT = 1
+    READY = 2
+    STARTED = 3
+    CONNECTING = 4
+    RUN = 5
+
+
 class SpWNode(Elaboratable):
-    def __init__(self, srcfreq, txfreq, transission_delay=12.8e-6, disconnect_delay=850e-9, time_master=True):
+    def __init__(self, srcfreq, txfreq, transission_delay=12.8e-6, disconnect_delay=850e-9, time_master=True, debug=True):
         self.i_reset = Signal()
         self.i_d = Signal()
         self.i_s = Signal()
@@ -38,6 +49,11 @@ class SpWNode(Elaboratable):
         self._transission_delay = transission_delay
         self._disconnect_delay = disconnect_delay
         self._time_master = time_master
+
+        self._debug = debug
+        if debug:
+            self.o_rx_got_null = Signal()
+            self.o_fsm_state = Signal(SpWNodeFSMStates)
 
     def elaborate(self, platform):
         m = Module()
@@ -84,7 +100,7 @@ class SpWNode(Elaboratable):
         ]
 
         with m.FSM() as main_fsm:
-            with m.State("ErrorReset"):
+            with m.State(SpWNodeFSMStates.ERROR_RESET):
                 m.d.comb += rx.i_reset.eq(1)
                 m.d.comb += tr.i_reset.eq(1)
                 m.d.sync += [
@@ -97,69 +113,69 @@ class SpWNode(Elaboratable):
                     pass
                 with m.Elif(delay.o_half_elapsed):
                     m.d.comb += delay.i_reset.eq(1)
-                    m.next = "ErrorWait"
+                    m.next = SpWNodeFSMStates.ERROR_WAIT
                 with m.Else():
                     m.d.comb += delay.i_start.eq(1)
-            with m.State("ErrorWait"):
+            with m.State(SpWNodeFSMStates.ERROR_WAIT):
                 m.d.comb += rx.i_reset.eq(0)
                 m.d.comb += tr.i_reset.eq(1)
 
                 with m.If((rx_error | (gotNULL & (rx.o_got_fct | rx.o_got_data | rx.o_got_timecode))) == 1):
                     m.d.comb += delay.i_reset.eq(1)
-                    m.next = "ErrorReset"
+                    m.next = SpWNodeFSMStates.ERROR_RESET
                 with m.Elif(delay.o_elapsed == 1):
                     m.d.comb += delay.i_reset.eq(1)
-                    m.next = "Ready"
+                    m.next = SpWNodeFSMStates.READY
                 with m.Elif(rx.o_got_null):
                     m.d.sync += gotNULL.eq(1)
                 with m.Else():
                     m.d.comb += delay.i_start.eq(1)
-            with m.State("Ready"):
+            with m.State(SpWNodeFSMStates.READY):
                 m.d.comb += rx.i_reset.eq(0)
                 m.d.comb += tr.i_reset.eq(1)
 
                 with m.If((rx_error | (gotNULL & (rx.o_got_fct | rx.o_got_data | rx.o_got_timecode))) == 1):
                     m.d.comb += delay.i_reset.eq(1)
-                    m.next = "ErrorReset"
+                    m.next = SpWNodeFSMStates.ERROR_RESET
                 with m.Elif(link_enabled == 1):
-                    m.next = "Started"
+                    m.next = SpWNodeFSMStates.STARTED
                 with m.Elif(rx.o_got_null):
                     m.d.sync += gotNULL.eq(1)
-            with m.State("Started"):
+            with m.State(SpWNodeFSMStates.STARTED):
                 m.d.comb += rx.i_reset.eq(0)
                 m.d.comb += tr.i_reset.eq(0)
 
                 with m.If((rx_error | (gotNULL & (rx.o_got_fct | rx.o_got_data | rx.o_got_timecode)) | delay.o_elapsed) == 1):
                     m.d.comb += delay.i_reset.eq(1)
-                    m.next = "ErrorReset"
+                    m.next = SpWNodeFSMStates.ERROR_RESET
                 with m.Elif((gotNULL | rx.o_got_null) == 1):
                     m.d.sync += gotNULL.eq(1)
                     m.d.comb += delay.i_reset.eq(1)
-                    m.next = "Connecting"
+                    m.next = SpWNodeFSMStates.CONNECTING
                 with m.Else():
                     m.d.comb += delay.i_start.eq(1)
-            with m.State("Connecting"):
+            with m.State(SpWNodeFSMStates.CONNECTING):
                 m.d.comb += rx.i_reset.eq(0)
                 m.d.comb += tr.i_reset.eq(0)
                 m.d.comb += tr.i_send_fct.eq((rx_tokens_count > 0) & (tr.o_ready == 1))
 
                 with m.If((rx_error | rx.o_got_data | rx.o_got_timecode | delay.o_elapsed) == 1):
                     m.d.comb += delay.i_reset.eq(1)
-                    m.next = "ErrorReset"
+                    m.next = SpWNodeFSMStates.ERROR_RESET
                 with m.Elif(rx.o_got_fct == 1):
                     m.d.sync += tx_credit.eq(tx_credit + 8)
                     m.d.comb += delay.i_reset.eq(1)
-                    m.next = "Run"
+                    m.next = SpWNodeFSMStates.RUN
                 with m.Else():
                     m.d.comb += delay.i_start.eq(1)
-            with m.State("Run"):
+            with m.State(SpWNodeFSMStates.RUN):
                 m.d.comb += rx.i_reset.eq(0)
                 m.d.comb += tr.i_reset.eq(0)
                 m.d.comb += tr_pre_send.eq((tx_fifo.level > 0) & tr.o_ready & (tx_credit > 0) & tx_fifo.r_rdy)
 
                 with m.If((rx_error | tx_credit_error | self.i_link_disabled) == 1):
                     m.d.comb += delay.i_reset.eq(1)
-                    m.next = "ErrorReset"
+                    m.next = SpWNodeFSMStates.ERROR_RESET
                 with m.Else():
                     m.d.comb += rx_fifo.w_en.eq(rx.o_got_data)
                     with m.If(time_updated & tr.o_ready):
@@ -177,7 +193,7 @@ class SpWNode(Elaboratable):
                         ]
 
         # Tokens and credit management
-        with m.If(main_fsm.ongoing("Connecting") | main_fsm.ongoing("Run")):
+        with m.If(main_fsm.ongoing(SpWNodeFSMStates.CONNECTING) | main_fsm.ongoing(SpWNodeFSMStates.RUN)):
             with m.If(tr.i_send_char & ~rx.o_got_fct):
                 m.d.sync += tx_credit.eq(tx_credit - 1)
             with m.Elif(rx.o_got_fct & (tx_credit > (56 - 8))):
@@ -200,7 +216,7 @@ class SpWNode(Elaboratable):
                     m.d.sync += rx_tokens_count.eq(rx_tokens_count - 1)
 
         # Link error
-        m.d.comb += self.o_link_error.eq(main_fsm.ongoing("RUN") & (rx_error | tx_credit_error))
+        m.d.comb += self.o_link_error.eq(main_fsm.ongoing(SpWNodeFSMStates.RUN) & (rx_error | tx_credit_error))
 
         # Time management
         with m.If(self.i_reset):
@@ -222,6 +238,12 @@ class SpWNode(Elaboratable):
                 m.d.sync += time_counter.eq(rx.o_data_char[0:6])
         with m.Else():
             m.d.sync += self.o_tick.eq(0)
+
+        if self._debug:
+            m.d.comb += [
+                self.o_rx_got_null.eq(rx.o_got_null),
+                self.o_fsm_state.eq(main_fsm.state)
+            ]
 
         return m
 

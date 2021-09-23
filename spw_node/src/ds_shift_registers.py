@@ -18,6 +18,7 @@ class DSOutputCharSR(Elaboratable):
         self.i_send_control = Signal()
         self.o_output = Signal()
         self.o_ready = Signal()
+        self.o_active = Signal()
 
     def elaborate(self, platform):
         m = Module()
@@ -43,13 +44,14 @@ class DSOutputCharSR(Elaboratable):
                         counter.eq(1),
                         self.o_output.eq(parity_to_send),
                         parity_prev.eq(0),
-                        send_control.eq(self.i_send_control)
+                        send_control.eq(self.i_send_control),
+                        self.o_active.eq(1)
                     ]
                     m.next = "SEND_TYPE"
-                with m.Elif(self.i_reset == 1):
-                    m.d.sync += self.o_ready.eq(0)
+                with m.Elif(self.i_reset):
+                    m.d.sync += [self.o_ready.eq(0), self.o_active.eq(0)]
                 with m.Else():
-                    m.d.sync += self.o_ready.eq(1)
+                    m.d.sync += [self.o_ready.eq(1), self.o_active.eq(0)]
 
                 with m.If((self.i_send_control & ~self.i_reset) == 1):
                     m.d.sync += counter_limit.eq(4)
