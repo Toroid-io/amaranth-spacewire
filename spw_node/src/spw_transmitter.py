@@ -182,11 +182,13 @@ class SpWTransmitter(Elaboratable):
                     ]
                     m.next = "Wait"
 
-            m.d.comb += self.o_ready.eq(tr_fsm.ongoing("Wait") & sr.o_ready & encoder.o_ready)
+            m.d.comb += self.o_ready.eq(tr_fsm.ongoing("Wait") & sr.o_ready & encoder.o_ready & ~encoder_reset)
             m.d.sync += send_null.eq(~self.i_send_char & ~self.i_send_eep & ~self.i_send_eop & ~self.i_send_esc & ~self.i_send_fct & self.o_ready)
 
         if self._debug:
-            self.o_encoder_reset_feedback.eq(encoder_reset_feedback)
+            m.d.comb += [
+                self.o_encoder_reset_feedback.eq(encoder_reset_feedback)
+            ]
 
         return m
 
