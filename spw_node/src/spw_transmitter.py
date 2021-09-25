@@ -7,6 +7,11 @@ from bitarray import bitarray
 from nmigen_boards.de0_nano import DE0NanoPlatform
 
 
+class WrongSignallingRate(Exception):
+    def __init__(self, message):
+        self.message = message
+
+
 class SpWTransmitter(Elaboratable):
     def __init__(self, srcfreq, txfreq, debug=False):
         self.i_reset = Signal()
@@ -20,6 +25,7 @@ class SpWTransmitter(Elaboratable):
         self.o_ready = Signal()
         self.o_d = Signal()
         self.o_s = Signal()
+
         self._txfreq = txfreq
         self._srcfreq = srcfreq
 
@@ -27,7 +33,11 @@ class SpWTransmitter(Elaboratable):
         if debug:
             self.o_encoder_reset_feedback = Signal()
 
-    def elaborate(self, elaborate):
+        if txfreq < 2e6:
+            self._MustUse__silence = True
+            raise WrongSignallingRate("Signalling rate must be at least 2 Mb/s (provided {0} Mb/s)".format(txfreq/1e6))
+
+    def elaborate(self, platform):
         m = Module()
 
         m.submodules.tr_clk = tr_clk = ClockDivider(self._srcfreq, self._txfreq)

@@ -6,8 +6,8 @@ import random
 
 def test_6_3_2_b():
 
-    SRCFREQ = 11e6
-    BIT_TIME = 3.7e-6
+    SRCFREQ = 20e6
+    BIT_TIME = 0.5e-6
     CHAR_TIME = BIT_TIME * 4
 
     dut = SpWTransmitter(SRCFREQ, 1/BIT_TIME, debug=True)
