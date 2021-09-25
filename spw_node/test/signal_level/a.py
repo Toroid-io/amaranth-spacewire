@@ -52,31 +52,24 @@ def test_6_3_2_a():
         yield from ds_sim_send_null(dut.i_d, dut.i_s, BIT_TIME)
         yield from ds_sim_send_null(dut.i_d, dut.i_s, BIT_TIME)
 
-    def validate_symbol_received(s):
-        yield Delay(BIT_TIME * 2)
-        for _ in range(LATENCY_BIT_START_TO_SYMBOL_DETECTED):
-            yield
-        yield Settle()
-        assert (yield s)
-
     def test_first_null():
         yield Delay(SIMSTART)
         yield Delay(CHAR_TIME * 2)
-        yield from validate_symbol_received(dut.o_rx_got_null)
+        yield from validate_symbol_received(BIT_TIME, dut.o_debug_rx_got_null)
 
     def test_second_null():
         yield Delay(SIMSTART)
         yield Delay(CHAR_TIME * 4)
-        yield from validate_symbol_received(dut.o_rx_got_null)
+        yield from validate_symbol_received(BIT_TIME, dut.o_debug_rx_got_null)
 
     def test_null_after_simultaneous():
         yield Delay(SIMSTART)
         yield Delay(CHAR_TIME * 10)
-        while (yield dut.o_fsm_state != SpWNodeFSMStates.ERROR_WAIT):
+        while (yield dut.o_debug_fsm_state != SpWNodeFSMStates.ERROR_WAIT):
             yield Delay(CHAR_TIME * 2)
         # Give a chance to sync with first ESC
         yield Delay(CHAR_TIME * 2)
-        yield from validate_symbol_received(dut.o_rx_got_null)
+        yield from validate_symbol_received(BIT_TIME, dut.o_debug_rx_got_null)
 
     sim.add_process(init)
     sim.add_process(ds_input)

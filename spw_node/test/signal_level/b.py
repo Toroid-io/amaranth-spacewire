@@ -21,7 +21,7 @@ def test_6_3_2_b():
 
     def assert_ds_order():
         yield dut.i_reset.eq(1)
-        while not (yield dut.o_encoder_reset_feedback):
+        while not (yield dut.o_debug_encoder_reset_feedback):
             yield
         # Now see the state of the DS signals
         d = yield dut.o_d

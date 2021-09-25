@@ -20,7 +20,7 @@ class SpWNodeFSMStates(enum.Enum):
 
 
 class SpWNode(Elaboratable):
-    def __init__(self, srcfreq, txfreq, transission_delay=12.8e-6, disconnect_delay=850e-9, time_master=True, debug=True):
+    def __init__(self, srcfreq, txfreq, transission_delay=12.8e-6, disconnect_delay=850e-9, time_master=True, debug=False):
         self.i_reset = Signal()
         self.i_d = Signal()
         self.i_s = Signal()
@@ -32,7 +32,6 @@ class SpWNode(Elaboratable):
         self.o_time_flags = Signal(2)
         self.o_time = Signal(6)
         self.o_link_error = Signal()
-        self.o_tx_ready = Signal()
         self.o_d = Signal()
         self.o_s = Signal()
 
@@ -52,8 +51,9 @@ class SpWNode(Elaboratable):
 
         self._debug = debug
         if debug:
-            self.o_rx_got_null = Signal()
-            self.o_fsm_state = Signal(SpWNodeFSMStates)
+            self.o_debug_rx_got_null = Signal()
+            self.o_debug_rx_got_fct = Signal()
+            self.o_debug_fsm_state = Signal(SpWNodeFSMStates)
 
     def elaborate(self, platform):
         m = Module()
@@ -241,8 +241,9 @@ class SpWNode(Elaboratable):
 
         if self._debug:
             m.d.comb += [
-                self.o_rx_got_null.eq(rx.o_got_null),
-                self.o_fsm_state.eq(main_fsm.state)
+                self.o_debug_rx_got_null.eq(rx.o_got_null),
+                self.o_debug_rx_got_fct.eq(rx.o_got_fct),
+                self.o_debug_fsm_state.eq(main_fsm.state)
             ]
 
         return m
@@ -251,9 +252,9 @@ class SpWNode(Elaboratable):
         return [
             self.i_reset, self.i_d, self.i_s, self.i_link_disabled,
             self.i_link_start, self.i_autostart, self.i_tick, self.o_tick,
-            self.o_time_flags, self.o_time, self.o_link_error, self.o_tx_ready,
-            self.o_d, self.o_s, self.o_r_data, self.o_r_rdy, self.i_w_en,
-            self.i_w_data, self.o_w_rdy
+            self.o_time_flags, self.o_time, self.o_link_error, self.o_d,
+            self.o_s, self.o_r_data, self.o_r_rdy, self.i_w_en, self.i_w_data,
+            self.o_w_rdy
         ]
 
 

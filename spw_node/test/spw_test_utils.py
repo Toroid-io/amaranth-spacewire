@@ -1,4 +1,4 @@
-from nmigen.sim import Delay
+from nmigen.sim import Delay, Settle
 from bitarray import bitarray
 from bitarray.util import int2ba
 import math
@@ -108,6 +108,15 @@ def ds_sim_send_null(i_d, i_s, bit_time=0.5e-6):
     yield from ds_sim_send_d(i_d, i_s, 0, bit_time)
     yield from ds_sim_send_d(i_d, i_s, 0, bit_time)
 
+def ds_sim_send_fct(i_d, i_s, bit_time=0.5e-6):
+    global prev_parity
+    parity = not (prev_parity ^ True)
+    prev_parity = False
+    yield from ds_sim_send_d(i_d, i_s, parity, bit_time)
+    yield from ds_sim_send_d(i_d, i_s, 1, bit_time)
+    yield from ds_sim_send_d(i_d, i_s, 0, bit_time)
+    yield from ds_sim_send_d(i_d, i_s, 0, bit_time)
+
 def ds_sim_send_timecode(i_d, i_s, code):
     global prev_parity
     parity = not (prev_parity ^ True)
@@ -132,3 +141,11 @@ def ds_sim_send_wrong_null(i_d, i_s):
     yield from ds_sim_send_d(i_d, i_s, 1)
     yield from ds_sim_send_d(i_d, i_s, 0)
     yield from ds_sim_send_d(i_d, i_s, 0)
+
+def validate_symbol_received(bit_time, s):
+    # Wait for parity bit to arrive
+    yield Delay(bit_time * 2)
+    for _ in range(LATENCY_BIT_START_TO_SYMBOL_DETECTED):
+        yield
+    yield Settle()
+    assert (yield s)

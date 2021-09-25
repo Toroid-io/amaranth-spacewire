@@ -31,7 +31,7 @@ class SpWTransmitter(Elaboratable):
 
         self._debug = debug
         if debug:
-            self.o_encoder_reset_feedback = Signal()
+            self.o_debug_encoder_reset_feedback = Signal()
 
         if txfreq < 2e6:
             self._MustUse__silence = True
@@ -197,7 +197,7 @@ class SpWTransmitter(Elaboratable):
 
         if self._debug:
             m.d.comb += [
-                self.o_encoder_reset_feedback.eq(encoder_reset_feedback)
+                self.o_debug_encoder_reset_feedback.eq(encoder_reset_feedback)
             ]
 
         return m
