@@ -1,5 +1,5 @@
 from nmigen import *
-from nmigen.sim import Simulator, Delay, Settle
+from nmigen.sim import Simulator, Delay
 from spw_node.src.spw_node import SpWNode, SpWNodeFSMStates
 from spw_node.src.spw_receiver import SpWReceiver
 from spw_node.test.spw_test_utils import *
@@ -11,7 +11,8 @@ def test_6_6_3():
     BIT_FREQ_RX = 5e6
     BIT_TIME_RX = 1 / BIT_FREQ_RX
     CHAR_TIME_RX = 4 * BIT_TIME_RX
-    BIT_FREQ_TX = SRCFREQ/8
+    # Use reset frequency to avoid managing two frequencies
+    BIT_FREQ_TX = 10e6
     BIT_TIME_TX = 1 / BIT_FREQ_TX
     CHAR_TIME_TX = 4 * BIT_TIME_TX
 
@@ -51,53 +52,21 @@ def test_6_6_3():
             else:
                 yield from ds_sim_send_null(node.i_d, node.i_s, 1/BIT_FREQ_RX)
 
-    def test_null_detected_in_node_a():
+    def test_null_detected_in_node():
         while (yield node.o_debug_fsm_state != SpWNodeFSMStates.ERROR_WAIT):
             yield
-        yield Delay(2 * CHAR_TIME_RX)
-        yield from validate_symbol_received(BIT_TIME_RX, node.o_debug_rx_got_null)
-
-    def test_null_detected_in_node_b():
-        while (yield node.o_debug_fsm_state != SpWNodeFSMStates.ERROR_WAIT):
-            yield
-        yield Delay(4 * CHAR_TIME_RX)
-        yield from validate_symbol_received(BIT_TIME_RX, node.o_debug_rx_got_null)
-
-    def test_null_detected_in_node_c():
-        while (yield node.o_debug_fsm_state != SpWNodeFSMStates.ERROR_WAIT):
-            yield
-        yield Delay(6 * CHAR_TIME_RX)
-        yield from validate_symbol_received(BIT_TIME_RX, node.o_debug_rx_got_null)
+        yield from validate_multiple_symbol_received(SRCFREQ, BIT_TIME_RX, node.o_debug_rx_got_null, 3)
 
     # Until 8.5.2.5.f is implemented, we know that the transmitter will send 7 FCTs before sending NULLs
-    def test_null_detected_in_rx_a():
+    def test_null_detected_in_rx():
         while not (yield node.o_s):
             yield
         yield Delay(7 * CHAR_TIME_TX)
-        yield Delay(2 * CHAR_TIME_TX)
-        yield from validate_symbol_received(BIT_TIME_TX, rx.o_got_null)
-
-    def test_null_detected_in_rx_b():
-        while not (yield node.o_s):
-            yield
-        yield Delay(7 * CHAR_TIME_TX)
-        yield Delay(4 * CHAR_TIME_TX)
-        yield from validate_symbol_received(BIT_TIME_TX, rx.o_got_null)
-
-    def test_null_detected_in_rx_c():
-        while not (yield node.o_s):
-            yield
-        yield Delay(7 * CHAR_TIME_TX)
-        yield Delay(6 * CHAR_TIME_TX)
-        yield from validate_symbol_received(BIT_TIME_TX, rx.o_got_null)
+        yield from validate_multiple_symbol_received(SRCFREQ, BIT_TIME_TX, rx.o_got_null, 3)
 
     sim.add_sync_process(send_nulls)
-    sim.add_sync_process(test_null_detected_in_node_a)
-    sim.add_sync_process(test_null_detected_in_node_b)
-    sim.add_sync_process(test_null_detected_in_node_c)
-    sim.add_sync_process(test_null_detected_in_rx_a)
-    sim.add_sync_process(test_null_detected_in_rx_b)
-    sim.add_sync_process(test_null_detected_in_rx_c)
+    sim.add_sync_process(test_null_detected_in_node)
+    sim.add_sync_process(test_null_detected_in_rx)
 
     with sim.write_vcd(get_vcd_filename(), get_gtkw_filename(), traces=node.ports()):
         sim.run()

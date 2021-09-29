@@ -7,10 +7,12 @@ import random
 def test_6_3_2_b():
 
     SRCFREQ = 20e6
-    BIT_TIME = 0.5e-6
+    # Use reset frequency to avoid managing two frequencies
+    TX_FREQ = 10e6
+    BIT_TIME = 1/TX_FREQ
     CHAR_TIME = BIT_TIME * 4
 
-    dut = SpWTransmitter(SRCFREQ, 1/BIT_TIME, debug=True)
+    dut = SpWTransmitter(SRCFREQ, TX_FREQ, debug=True)
 
     sim = Simulator(dut)
     sim.add_clock(1/SRCFREQ)
@@ -69,7 +71,7 @@ def test_6_3_2_b():
         for _ in range(ds_sim_period_to_ticks(20e-6, SRCFREQ)):
             yield
         yield dut.i_reset.eq(0)
-        for _ in range(200):
+        for _ in range(100):
             t = random.randint(6, 147)
             for _ in range(ds_sim_period_to_ticks(t * 1e-6, SRCFREQ)):
                 yield

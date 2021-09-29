@@ -52,7 +52,7 @@ def ds_sim_char_to_bits(c):
     return ret
 
 def ds_sim_period_to_ticks(p, srcfreq):
-    return math.ceil(p * srcfreq)
+    return math.floor(p * srcfreq)
 
 def ds_sim_send_d(i_d, i_s, d, bit_time=0.5e-6):
     global prev_d
@@ -66,7 +66,7 @@ def ds_sim_send_d(i_d, i_s, d, bit_time=0.5e-6):
     prev_d = d
     yield Delay(bit_time)
 
-def ds_sim_send_char(i_d, i_s, b):
+def ds_sim_send_char(i_d, i_s, b, bit_time=0.5e-6):
     global prev_parity
     data = bitarray(endian='little')
     data.frombytes(b.encode())
@@ -75,10 +75,10 @@ def ds_sim_send_char(i_d, i_s, b):
     for i in range(8):
         next_parity = next_parity ^ data[i]
     prev_parity = next_parity
-    yield from ds_sim_send_d(i_d, i_s, parity)
-    yield from ds_sim_send_d(i_d, i_s, 0)
+    yield from ds_sim_send_d(i_d, i_s, parity, bit_time)
+    yield from ds_sim_send_d(i_d, i_s, 0, bit_time)
     for i in range(8):
-        yield from ds_sim_send_d(i_d, i_s, data[i])
+        yield from ds_sim_send_d(i_d, i_s, data[i], bit_time)
 
 def ds_sim_send_int(i_d, i_s, b):
     global prev_parity
@@ -142,10 +142,18 @@ def ds_sim_send_wrong_null(i_d, i_s):
     yield from ds_sim_send_d(i_d, i_s, 0)
     yield from ds_sim_send_d(i_d, i_s, 0)
 
-def validate_symbol_received(bit_time, s):
+def validate_symbol_received(src_freq, bit_time, s):
     # Wait for parity bit to arrive
     yield Delay(bit_time * 2)
     for _ in range(LATENCY_BIT_START_TO_SYMBOL_DETECTED):
         yield
     yield Settle()
     assert (yield s)
+    # TODO: Why - 1 here ?
+    return bit_time * 2 + (LATENCY_BIT_START_TO_SYMBOL_DETECTED - 1) * (1/src_freq)
+
+def validate_multiple_symbol_received(src_freq, bit_time, s, num):
+    waited = 0
+    for _ in range(num):
+        yield Delay(2 * 4 * bit_time - waited)
+        waited = yield from validate_symbol_received(src_freq, bit_time, s)

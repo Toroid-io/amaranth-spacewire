@@ -7,7 +7,7 @@ def test_6_6_1():
     BIT_FREQ_MIN = 2e6
 
     try:
-        dut1 = SpWTransmitter(10e6, BIT_FREQ_MIN)
+        dut1 = SpWTransmitter(20e6, BIT_FREQ_MIN)
     except WrongSignallingRate as exc:
         print(exc)
         assert(False)
@@ -16,7 +16,7 @@ def test_6_6_1():
 
     try:
         # Expect failure
-        dut2 = SpWTransmitter(10e6, BIT_FREQ_MIN - 1)
+        dut2 = SpWTransmitter(20e6, BIT_FREQ_MIN - 1)
         assert(False)
     except WrongSignallingRate as exc:
         print(exc)

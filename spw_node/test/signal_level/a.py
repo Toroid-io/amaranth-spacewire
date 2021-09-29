@@ -5,12 +5,14 @@ from spw_node.test.spw_test_utils import *
 
 def test_6_3_2_a():
 
-    SRCFREQ = 10e6
+    SRCFREQ = 20e6
     SIMSTART = 20e-6
-    BIT_TIME = 0.5e-6
+    # Use reset frequency to avoid managing two frequencies
+    TX_FREQ = 10e6
+    BIT_TIME = 1/TX_FREQ
     CHAR_TIME = BIT_TIME * 4
 
-    dut = SpWNode(srcfreq=SRCFREQ, txfreq=1/BIT_TIME, disconnect_delay=1, debug=True)
+    dut = SpWNode(srcfreq=SRCFREQ, txfreq=TX_FREQ, disconnect_delay=1, debug=True)
 
     sim = Simulator(dut)
     sim.add_clock(1/SRCFREQ)
@@ -51,16 +53,12 @@ def test_6_3_2_a():
         yield from ds_sim_send_null(dut.i_d, dut.i_s, BIT_TIME)
         yield from ds_sim_send_null(dut.i_d, dut.i_s, BIT_TIME)
         yield from ds_sim_send_null(dut.i_d, dut.i_s, BIT_TIME)
+        for _ in range(10):
+            yield from ds_sim_send_null(dut.i_d, dut.i_s, BIT_TIME)
 
-    def test_first_null():
+    def test_nulls():
         yield Delay(SIMSTART)
-        yield Delay(CHAR_TIME * 2)
-        yield from validate_symbol_received(BIT_TIME, dut.o_debug_rx_got_null)
-
-    def test_second_null():
-        yield Delay(SIMSTART)
-        yield Delay(CHAR_TIME * 4)
-        yield from validate_symbol_received(BIT_TIME, dut.o_debug_rx_got_null)
+        yield from validate_multiple_symbol_received(SRCFREQ, BIT_TIME, dut.o_debug_rx_got_null, 2)
 
     def test_null_after_simultaneous():
         yield Delay(SIMSTART)
@@ -69,13 +67,14 @@ def test_6_3_2_a():
             yield Delay(CHAR_TIME * 2)
         # Give a chance to sync with first ESC
         yield Delay(CHAR_TIME * 2)
-        yield from validate_symbol_received(BIT_TIME, dut.o_debug_rx_got_null)
+        yield from validate_symbol_received(SRCFREQ, BIT_TIME, dut.o_debug_rx_got_null)
 
     sim.add_process(init)
     sim.add_process(ds_input)
+    sim.add_sync_process(test_nulls)
     sim.add_sync_process(test_null_after_simultaneous)
 
     with sim.write_vcd(get_vcd_filename(), get_gtkw_filename(), traces=dut.ports()):
-        sim.run_until(50e-6)
+        sim.run()
 
 tests = [test_6_3_2_a]

@@ -3,6 +3,7 @@ from nmigen.sim import Simulator, Delay
 from .ds_shift_registers import DSOutputCharSR
 from .ds_encoder import DSEncoder
 from .clock_divider import ClockDivider
+from .clock_mux import ClockMux
 from bitarray import bitarray
 from nmigen_boards.de0_nano import DE0NanoPlatform
 
@@ -12,9 +13,18 @@ class WrongSignallingRate(Exception):
         self.message = message
 
 
+class WrongSourceFrequency(Exception):
+    def __init__(self, message):
+        self.message = message
+
+
 class SpWTransmitter(Elaboratable):
+    TX_FREQ_RESET = 10e6
+    MIN_TX_FREQ_USER = 2e6
+
     def __init__(self, srcfreq, txfreq, debug=False):
         self.i_reset = Signal()
+        self.i_switch_to_user_tx_freq = Signal()
         self.i_char = Signal(8)
         self.i_send_char = Signal()
         self.i_send_fct = Signal()
@@ -32,20 +42,30 @@ class SpWTransmitter(Elaboratable):
         self._debug = debug
         if debug:
             self.o_debug_encoder_reset_feedback = Signal()
+            self.o_debug_mux_clk = Signal()
+            self.o_debug_mux_sel = Signal()
 
-        if txfreq < 2e6:
+        if txfreq < SpWTransmitter.MIN_TX_FREQ_USER:
             self._MustUse__silence = True
             raise WrongSignallingRate("Signalling rate must be at least 2 Mb/s (provided {0} Mb/s)".format(txfreq/1e6))
+        elif srcfreq < 2 * SpWTransmitter.TX_FREQ_RESET:
+            self._MustUse__silence = True
+            raise WrongSourceFrequency("The source frequency must be at least 2 times the reset transmit frequency. Expected > {0}, given {1}".format(2 * SpWTransmitter.TX_FREQ_RESET, srcfreq))
+        elif srcfreq < 2 * txfreq:
+            self._MustUse__silence = True
+            raise WrongSourceFrequency("The source frequency must be at least 2 times the transmit frequency. Expected > {0}, given {1}".format(2 * txfreq, srcfreq))
 
     def elaborate(self, platform):
         m = Module()
 
-        m.submodules.tr_clk = tr_clk = ClockDivider(self._srcfreq, self._txfreq)
+        m.submodules.tr_clk_reset = tr_clk_reset = ClockDivider(self._srcfreq, SpWTransmitter.TX_FREQ_RESET)
+        m.submodules.tr_clk_user = tr_clk_user = ClockDivider(self._srcfreq, self._txfreq)
+        m.submodules.tr_clk_mux = tr_clk_mux = ClockMux()
         m.domains.tx = ClockDomain("tx", local=True)
-        m.d.comb += ClockSignal("tx").eq(tr_clk.o)
         m.submodules.encoder = encoder = DomainRenamer("tx")(DSEncoder())
         m.submodules.sr = sr = DomainRenamer("tx")(DSOutputCharSR())
 
+        # TODO: Const
         char_fct = Signal(8, reset=0b00000000)
         char_esc = Signal(8, reset=0b00000011)
         char_eop = Signal(8, reset=0b00000010)
@@ -195,9 +215,18 @@ class SpWTransmitter(Elaboratable):
             m.d.comb += self.o_ready.eq(tr_fsm.ongoing("Wait") & sr.o_ready & encoder.o_ready & ~encoder_reset)
             m.d.sync += send_null.eq(~self.i_send_char & ~self.i_send_eep & ~self.i_send_eop & ~self.i_send_esc & ~self.i_send_fct & self.o_ready)
 
+        m.d.comb += [
+            tr_clk_mux.i_sel.eq(self.i_switch_to_user_tx_freq),
+            tr_clk_mux.i_clka.eq(tr_clk_reset.o),
+            tr_clk_mux.i_clkb.eq(tr_clk_user.o),
+            ClockSignal("tx").eq(tr_clk_mux.o_clk)
+        ]
+
         if self._debug:
             m.d.comb += [
-                self.o_debug_encoder_reset_feedback.eq(encoder_reset_feedback)
+                self.o_debug_encoder_reset_feedback.eq(encoder_reset_feedback),
+                self.o_debug_mux_clk.eq(tr_clk_mux.o_clk),
+                self.o_debug_mux_sel.eq(tr_clk_mux.i_sel)
             ]
 
         return m

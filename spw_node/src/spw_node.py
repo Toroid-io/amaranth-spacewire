@@ -22,6 +22,7 @@ class SpWNodeFSMStates(enum.Enum):
 class SpWNode(Elaboratable):
     def __init__(self, srcfreq, txfreq, transission_delay=12.8e-6, disconnect_delay=850e-9, time_master=True, debug=False):
         self.i_reset = Signal()
+        self.i_switch_to_user_tx_freq = Signal()
         self.i_d = Signal()
         self.i_s = Signal()
         self.i_link_disabled = Signal()
@@ -54,14 +55,16 @@ class SpWNode(Elaboratable):
             self.o_debug_rx_got_null = Signal()
             self.o_debug_rx_got_fct = Signal()
             self.o_debug_fsm_state = Signal(SpWNodeFSMStates)
+            self.debug_tr = None
 
     def elaborate(self, platform):
         m = Module()
 
-        m.submodules.tr = tr = SpWTransmitter(self._srcfreq, self._txfreq)
+        m.submodules.tr = tr = SpWTransmitter(self._srcfreq, self._txfreq, debug=True)
         m.submodules.rx = rx = SpWReceiver(self._srcfreq, self._disconnect_delay)
         m.submodules.delay = delay = SpWDelay(self._srcfreq, self._transission_delay, strategy='at_least')
 
+        use_user_tx_freq = Signal()
         tr_pre_send = Signal()
         rx_error = Signal()
         rx_tokens_count = Signal(range(7 + 1), reset=7)
@@ -80,7 +83,8 @@ class SpWNode(Elaboratable):
             rx.i_d.eq(self.i_d),
             rx.i_s.eq(self.i_s),
             rx_error.eq(rx.o_escape_error | rx.o_parity_error | rx.o_read_error | rx.o_disconnect_error),
-            link_enabled.eq(~self.i_link_disabled & (self.i_link_start | (self.i_autostart & gotNULL)))
+            link_enabled.eq(~self.i_link_disabled & (self.i_link_start | (self.i_autostart & gotNULL))),
+            tr.i_switch_to_user_tx_freq.eq(use_user_tx_freq)
         ]
 
         m.submodules.rx_fifo = rx_fifo = SyncFIFOBuffered(width=8, depth=56)
@@ -239,12 +243,19 @@ class SpWNode(Elaboratable):
         with m.Else():
             m.d.sync += self.o_tick.eq(0)
 
+        # User TX Frequency management
+        with m.If(main_fsm.ongoing(SpWNodeFSMStates.RUN) & self.i_switch_to_user_tx_freq & tr.o_ready):
+            m.d.sync += use_user_tx_freq.eq(1)
+        with m.Elif(~main_fsm.ongoing(SpWNodeFSMStates.RUN) | ~self.i_switch_to_user_tx_freq & tr.o_ready):
+            m.d.sync += use_user_tx_freq.eq(0)
+
         if self._debug:
             m.d.comb += [
                 self.o_debug_rx_got_null.eq(rx.o_got_null),
                 self.o_debug_rx_got_fct.eq(rx.o_got_fct),
                 self.o_debug_fsm_state.eq(main_fsm.state)
             ]
+            self.debug_tr = tr
 
         return m
 
