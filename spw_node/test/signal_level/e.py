@@ -49,10 +49,7 @@ def test_6_6_5_a_b():
                 yield from ds_sim_send_fct(node.i_d, node.i_s, BIT_TIME_TX_RESET)
                 sent_fct = True
             else:
-                if sent_fct:
-                    yield from ds_sim_send_null(node.i_d, node.i_s, BIT_TIME_TX_RESET)
-                else:
-                    yield from ds_sim_send_null(node.i_d, node.i_s, BIT_TIME_TX_RESET)
+                yield from ds_sim_send_null(node.i_d, node.i_s, BIT_TIME_TX_RESET)
 
     def test_null_detected_in_rx():
         while not (yield node.o_s):

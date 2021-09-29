@@ -127,20 +127,20 @@ def ds_sim_send_timecode(i_d, i_s, code):
     yield from ds_sim_send_d(i_d, i_s, 1)
     yield from ds_sim_send_int(i_d, i_s, code)
 
-def ds_sim_send_wrong_null(i_d, i_s):
+def ds_sim_send_wrong_null(i_d, i_s, bit_time=0.5e-6):
     global prev_parity
     parity = not (prev_parity ^ True)
     prev_parity = False
-    yield from ds_sim_send_d(i_d, i_s, parity)
-    yield from ds_sim_send_d(i_d, i_s, 1)
-    yield from ds_sim_send_d(i_d, i_s, 1)
-    yield from ds_sim_send_d(i_d, i_s, 1)
+    yield from ds_sim_send_d(i_d, i_s, parity, bit_time)
+    yield from ds_sim_send_d(i_d, i_s, 1, bit_time)
+    yield from ds_sim_send_d(i_d, i_s, 1, bit_time)
+    yield from ds_sim_send_d(i_d, i_s, 1, bit_time)
     parity = not (prev_parity ^ True)
     prev_parity = False
-    yield from ds_sim_send_d(i_d, i_s, not parity)
-    yield from ds_sim_send_d(i_d, i_s, 1)
-    yield from ds_sim_send_d(i_d, i_s, 0)
-    yield from ds_sim_send_d(i_d, i_s, 0)
+    yield from ds_sim_send_d(i_d, i_s, not parity, bit_time)
+    yield from ds_sim_send_d(i_d, i_s, 1, bit_time)
+    yield from ds_sim_send_d(i_d, i_s, 0, bit_time)
+    yield from ds_sim_send_d(i_d, i_s, 0, bit_time)
 
 def validate_symbol_received(src_freq, bit_time, s):
     # Wait for parity bit to arrive
