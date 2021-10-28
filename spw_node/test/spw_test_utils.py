@@ -17,12 +17,15 @@ def add_module_to_path():
     sys.path.insert(0, parentdir)
 
 def get_gtkw_filename(test_suffix=None):
-    return _get_test_output_filename(False, test_suffix)
+    return _get_test_output_filename('gtkw', test_suffix)
 
 def get_vcd_filename(test_suffix=None):
-    return _get_test_output_filename(True, test_suffix)
+    return _get_test_output_filename('vcd', test_suffix)
 
-def _get_test_output_filename(vcd=True, test_suffix=None):
+def get_il_filename(test_suffix=None):
+    return _get_test_output_filename('il', test_suffix)
+
+def _get_test_output_filename(extension='vcd', test_suffix=None):
     frame = inspect.stack()[2]
     active_test_file = inspect.getfile(frame[0])
     module = inspect.getmodule(frame[0])
@@ -32,8 +35,8 @@ def _get_test_output_filename(vcd=True, test_suffix=None):
     calframe = inspect.getouterframes(inspect.currentframe(), 2)
     test_prefix_2 = calframe[2][3]
 
-    extension = '.vcd' if vcd else '.gtkw'
-    folder = 'vcd' if vcd else 'gtkw'
+    folder = extension
+    extension = '.'+extension
     filename = os.path.join(currentdir, folder, '_'.join([test_prefix, test_prefix_2]))
     filename = '_'.join([filename, test_suffix]) + extension if test_suffix else filename + extension
 

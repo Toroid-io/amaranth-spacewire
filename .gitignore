@@ -5,3 +5,6 @@ vcd/*
 gtkw/*
 gtkw_viewers/*
 build/
+*.il
+*_bmc
+*_cover

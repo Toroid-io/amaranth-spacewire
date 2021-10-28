@@ -2,7 +2,7 @@ import enum
 from nmigen import *
 from nmigen.lib.fifo import SyncFIFOBuffered
 from nmigen.sim import Simulator
-from .spw_transmitter import SpWTransmitter
+from .spw_transmitter import SpWTransmitter, SpWTransmitterStates
 from .spw_receiver import SpWReceiver
 from .spw_delay import SpWDelay
 from .spw_sim_utils import *
@@ -56,6 +56,10 @@ class SpWNode(Elaboratable):
             self.o_debug_rx_got_fct = Signal()
             self.o_debug_fsm_state = Signal(SpWNodeFSMStates)
             self.debug_tr = None
+            self.o_debug_time_counter = Signal(6)
+            self.o_debug_tr_send_time = Signal()
+            self.o_debug_tr_fsm_state = Signal(SpWTransmitterStates)
+            self.o_debug_tr_sr_input = Signal(8)
 
     def elaborate(self, platform):
         m = Module()
@@ -185,7 +189,7 @@ class SpWNode(Elaboratable):
                     with m.If(time_updated & tr.o_ready):
                         m.d.comb += [
                             tr.i_send_time.eq(1),
-                            tr.i_char.eq(time_counter)
+                            tr.i_char.eq(Cat(time_counter, Const(0, 2)))
                         ]
                     with m.Elif((rx_tokens_count > 0) & (tr.o_ready == 1)):
                         m.d.comb += tr.i_send_fct.eq(1)
@@ -201,7 +205,7 @@ class SpWNode(Elaboratable):
             with m.If(tr.i_send_char & ~rx.o_got_fct):
                 m.d.sync += tx_credit.eq(tx_credit - 1)
             with m.Elif(rx.o_got_fct & (tx_credit > (56 - 8))):
-                m.d.comb += tx_credit_error.eq(1)
+                m.d.sync += tx_credit_error.eq(1)
             with m.Elif(rx.o_got_fct & ~tr.i_send_char):
                 m.d.sync += tx_credit.eq(tx_credit + 8)
             with m.Elif(rx.o_got_fct & tr.i_send_char):
@@ -253,7 +257,11 @@ class SpWNode(Elaboratable):
             m.d.comb += [
                 self.o_debug_rx_got_null.eq(rx.o_got_null),
                 self.o_debug_rx_got_fct.eq(rx.o_got_fct),
-                self.o_debug_fsm_state.eq(main_fsm.state)
+                self.o_debug_fsm_state.eq(main_fsm.state),
+                self.o_debug_time_counter.eq(time_counter),
+                self.o_debug_tr_send_time.eq(tr.i_send_time),
+                self.o_debug_tr_fsm_state.eq(tr.o_debug_fsm_state),
+                self.o_debug_tr_sr_input.eq(tr.o_debug_sr_input)
             ]
             self.debug_tr = tr
 

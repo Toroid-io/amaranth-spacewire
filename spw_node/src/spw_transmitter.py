@@ -58,6 +58,7 @@ class SpWTransmitter(Elaboratable):
             self.o_debug_mux_clk = Signal()
             self.o_debug_mux_sel = Signal()
             self.o_debug_fsm_state = Signal()
+            self.o_debug_sr_input = Signal(8)
 
         if txfreq < SpWTransmitter.MIN_TX_FREQ_USER:
             self._MustUse__silence = True
@@ -90,6 +91,7 @@ class SpWTransmitter(Elaboratable):
         encoder_reset = Signal(reset=1)
         encoder_reset_feedback = Signal()
         send_null = Signal()
+        timecode_to_send = Signal(8)
 
         m.d.comb += [
             encoder.i_d.eq(sr.o_output),
@@ -142,7 +144,8 @@ class SpWTransmitter(Elaboratable):
                     with m.Elif(self.i_send_time == 1):
                         m.d.sync += [
                             sr.i_send_control.eq(1),
-                            sr.i_input.eq(char_esc)
+                            sr.i_input.eq(char_esc),
+                            timecode_to_send.eq(self.i_char)
                         ]
                         m.next = SpWTransmitterStates.SEND_TIME_A
                     with m.Elif(send_null == 1):
@@ -212,7 +215,7 @@ class SpWTransmitter(Elaboratable):
                 with m.Elif(sr.o_ready == 1):
                     m.d.sync += [
                         sr.i_send_data.eq(1),
-                        sr.i_input.eq(self.i_char)
+                        sr.i_input.eq(timecode_to_send)
                     ]
                     m.next = SpWTransmitterStates.SEND_TIME_C
             with m.State(SpWTransmitterStates.SEND_TIME_C):
@@ -241,7 +244,8 @@ class SpWTransmitter(Elaboratable):
                 self.o_debug_encoder_reset_feedback.eq(encoder_reset_feedback),
                 self.o_debug_mux_clk.eq(tr_clk_mux.o_clk),
                 self.o_debug_mux_sel.eq(tr_clk_mux.i_sel),
-                self.o_debug_fsm_state.eq(tr_fsm.state)
+                self.o_debug_fsm_state.eq(tr_fsm.state),
+                self.o_debug_sr_input.eq(sr.i_input)
             ]
 
         return m
