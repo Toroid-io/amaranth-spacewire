@@ -1,4 +1,6 @@
 import enum
+import math
+
 from nmigen import *
 from nmigen.lib.fifo import SyncFIFOBuffered
 from nmigen.sim import Simulator
@@ -6,7 +8,6 @@ from .spw_transmitter import SpWTransmitter, SpWTransmitterStates
 from .spw_receiver import SpWReceiver
 from .spw_delay import SpWDelay
 from .spw_sim_utils import *
-import math
 from nmigen_boards.de0_nano import DE0NanoPlatform
 
 
@@ -21,28 +22,28 @@ class SpWNodeFSMStates(enum.Enum):
 
 class SpWNode(Elaboratable):
     def __init__(self, srcfreq, txfreq, transission_delay=12.8e-6, disconnect_delay=850e-9, time_master=True, debug=False):
-        self.i_reset = Signal()
-        self.i_switch_to_user_tx_freq = Signal()
-        self.i_d = Signal()
-        self.i_s = Signal()
-        self.i_link_disabled = Signal()
-        self.i_link_start = Signal()
-        self.i_autostart = Signal()
-        self.i_tick = Signal()
-        self.o_tick = Signal()
-        self.o_time_flags = Signal(2)
-        self.o_time = Signal(6)
-        self.o_link_error = Signal()
-        self.o_d = Signal()
-        self.o_s = Signal()
+        self.soft_reset = Signal()
+        self.switch_to_user_tx_freq = Signal()
+        self.d_input = Signal()
+        self.s_input = Signal()
+        self.link_disabled = Signal()
+        self.link_start = Signal()
+        self.autostart = Signal()
+        self.tick_input = Signal()
+        self.tick_output = Signal()
+        self.time_flags = Signal(2)
+        self.time_value = Signal(6)
+        self.link_error = Signal()
+        self.d_output = Signal()
+        self.s_output = Signal()
 
         # FIFO
-        self.i_r_en = Signal()
-        self.o_r_data = Signal(8)
-        self.o_r_rdy = Signal()
-        self.i_w_en = Signal()
-        self.i_w_data = Signal(8)
-        self.o_w_rdy = Signal()
+        self.r_en = Signal()
+        self.r_data = Signal(8)
+        self.r_rdy = Signal()
+        self.w_en = Signal()
+        self.w_data = Signal(8)
+        self.w_rdy = Signal()
 
         self._srcfreq = srcfreq
         self._txfreq = txfreq
@@ -82,12 +83,12 @@ class SpWNode(Elaboratable):
         link_enabled = Signal()
 
         m.d.comb += [
-            self.o_d.eq(tr.o_d),
-            self.o_s.eq(tr.o_s),
-            rx.i_d.eq(self.i_d),
-            rx.i_s.eq(self.i_s),
+            self.d_output.eq(tr.o_d),
+            self.s_output.eq(tr.o_s),
+            rx.i_d.eq(self.d_input),
+            rx.i_s.eq(self.s_input),
             rx_error.eq(rx.o_escape_error | rx.o_parity_error | rx.o_read_error | rx.o_disconnect_error),
-            link_enabled.eq(~self.i_link_disabled & (self.i_link_start | (self.i_autostart & gotNULL))),
+            link_enabled.eq(~self.link_disabled & (self.link_start | (self.autostart & gotNULL))),
             tr.i_switch_to_user_tx_freq.eq(use_user_tx_freq)
         ]
 
@@ -95,16 +96,16 @@ class SpWNode(Elaboratable):
         m.submodules.tx_fifo = tx_fifo = SyncFIFOBuffered(width=8, depth=56)
 
         m.d.comb += [
-            rx_fifo.r_en.eq(self.i_r_en),
-            self.o_r_data.eq(rx_fifo.r_data),
-            self.o_r_rdy.eq(rx_fifo.r_rdy),
+            rx_fifo.r_en.eq(self.r_en),
+            self.r_data.eq(rx_fifo.r_data),
+            self.r_rdy.eq(rx_fifo.r_rdy),
             rx_fifo.w_data.eq(rx.o_data_char),
 
-            tx_fifo.w_en.eq(self.i_w_en),
-            tx_fifo.w_data.eq(self.i_w_data),
-            self.o_w_rdy.eq(tx_fifo.w_rdy),
+            tx_fifo.w_en.eq(self.w_en),
+            tx_fifo.w_data.eq(self.w_data),
+            self.w_rdy.eq(tx_fifo.w_rdy),
 
-            read_in_progress.eq(self.i_r_en & rx_fifo.r_rdy)
+            read_in_progress.eq(self.r_en & rx_fifo.r_rdy)
         ]
 
         with m.FSM() as main_fsm:
@@ -117,7 +118,7 @@ class SpWNode(Elaboratable):
                     gotNULL.eq(0),
                 ]
 
-                with m.If(self.i_reset):
+                with m.If(self.soft_reset):
                     pass
                 with m.Elif(delay.o_half_elapsed):
                     m.d.comb += delay.i_reset.eq(1)
@@ -181,7 +182,7 @@ class SpWNode(Elaboratable):
                 m.d.comb += tr.i_reset.eq(0)
                 m.d.comb += tr_pre_send.eq((tx_fifo.level > 0) & tr.o_ready & (tx_credit > 0) & tx_fifo.r_rdy)
 
-                with m.If((rx_error | tx_credit_error | self.i_link_disabled) == 1):
+                with m.If((rx_error | tx_credit_error | self.link_disabled) == 1):
                     m.d.comb += delay.i_reset.eq(1)
                     m.next = SpWNodeFSMStates.ERROR_RESET
                 with m.Else():
@@ -224,12 +225,12 @@ class SpWNode(Elaboratable):
                     m.d.sync += rx_tokens_count.eq(rx_tokens_count - 1)
 
         # Link error
-        m.d.comb += self.o_link_error.eq(main_fsm.ongoing(SpWNodeFSMStates.RUN) & (rx_error | tx_credit_error))
+        m.d.comb += self.link_error.eq(main_fsm.ongoing(SpWNodeFSMStates.RUN) & (rx_error | tx_credit_error))
 
         # Time management
-        with m.If(self.i_reset):
+        with m.If(self.soft_reset):
             m.d.sync += time_counter.eq(0)
-        with m.Elif(self.i_tick & self._time_master):
+        with m.Elif(self.tick_input & self._time_master):
             m.d.sync += [time_counter.eq(time_counter + 1), time_updated.eq(1)]
         with m.Elif(tr.i_send_time):
             m.d.sync += time_updated.eq(0)
@@ -237,20 +238,20 @@ class SpWNode(Elaboratable):
             with m.If(rx.o_data_char[0:6] == (time_counter + 1)):
                 # Output tick + store flags + store counter
                 m.d.sync += [
-                    self.o_tick.eq(1),
-                    self.o_time.eq(time_counter + 1),
-                    self.o_time_flags.eq(rx.o_data_char[6:8]),
+                    self.tick_output.eq(1),
+                    self.time_value.eq(time_counter + 1),
+                    self.time_flags.eq(rx.o_data_char[6:8]),
                     time_counter.eq(time_counter + 1)
                 ]
             with m.Elif(rx.o_data_char[0:6] != time_counter):
                 m.d.sync += time_counter.eq(rx.o_data_char[0:6])
         with m.Else():
-            m.d.sync += self.o_tick.eq(0)
+            m.d.sync += self.tick_output.eq(0)
 
         # User TX Frequency management
-        with m.If(main_fsm.ongoing(SpWNodeFSMStates.RUN) & self.i_switch_to_user_tx_freq & tr.o_ready):
+        with m.If(main_fsm.ongoing(SpWNodeFSMStates.RUN) & self.switch_to_user_tx_freq & tr.o_ready):
             m.d.sync += use_user_tx_freq.eq(1)
-        with m.Elif(~main_fsm.ongoing(SpWNodeFSMStates.RUN) | ~self.i_switch_to_user_tx_freq & tr.o_ready):
+        with m.Elif(~main_fsm.ongoing(SpWNodeFSMStates.RUN) | ~self.switch_to_user_tx_freq & tr.o_ready):
             m.d.sync += use_user_tx_freq.eq(0)
 
         if self._debug:
@@ -269,11 +270,11 @@ class SpWNode(Elaboratable):
 
     def ports(self):
         return [
-            self.i_reset, self.i_d, self.i_s, self.i_link_disabled,
-            self.i_link_start, self.i_autostart, self.i_tick, self.o_tick,
-            self.o_time_flags, self.o_time, self.o_link_error, self.o_d,
-            self.o_s, self.o_r_data, self.o_r_rdy, self.i_w_en, self.i_w_data,
-            self.o_w_rdy
+            self.soft_reset, self.d_input, self.s_input, self.link_disabled,
+            self.link_start, self.autostart, self.tick_input, self.tick_output,
+            self.time_flags, self.time_value, self.link_error, self.d_output,
+            self.s_output, self.r_en, self.r_data, self.r_rdy, self.w_en, self.w_data,
+            self.w_rdy, self.switch_to_user_tx_freq
         ]
 
 

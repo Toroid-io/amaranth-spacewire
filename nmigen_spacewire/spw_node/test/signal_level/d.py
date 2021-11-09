@@ -23,17 +23,17 @@ def test_6_6_3():
     m.submodules.rx = rx
 
     m.d.comb += [
-        node.i_link_disabled.eq(0),
-        node.i_link_start.eq(1),
-        node.i_autostart.eq(1),
-        node.i_r_en.eq(0),
-        node.i_reset.eq(0),
-        node.i_tick.eq(0),
-        node.i_w_en.eq(0),
+        node.link_disabled.eq(0),
+        node.link_start.eq(1),
+        node.autostart.eq(1),
+        node.r_en.eq(0),
+        node.soft_reset.eq(0),
+        node.tick_input.eq(0),
+        node.w_en.eq(0),
 
         rx.i_reset.eq(0),
-        rx.i_d.eq(node.o_d),
-        rx.i_s.eq(node.o_s)
+        rx.i_d.eq(node.d_output),
+        rx.i_s.eq(node.s_output)
     ]
 
     sim = Simulator(m)
@@ -47,10 +47,10 @@ def test_6_6_3():
             yield
         for _ in range(50):
             if not sent_fct and (yield node.o_debug_fsm_state == SpWNodeFSMStates.CONNECTING):
-                yield from ds_sim_send_fct(node.i_d, node.i_s, 1/BIT_FREQ_RX)
+                yield from ds_sim_send_fct(node.d_input, node.s_input, 1/BIT_FREQ_RX)
                 sent_fct = True
             else:
-                yield from ds_sim_send_null(node.i_d, node.i_s, 1/BIT_FREQ_RX)
+                yield from ds_sim_send_null(node.d_input, node.s_input, 1/BIT_FREQ_RX)
 
     def test_null_detected_in_node():
         while (yield node.o_debug_fsm_state != SpWNodeFSMStates.ERROR_WAIT):
@@ -59,7 +59,7 @@ def test_6_6_3():
 
     # Until 8.5.2.5.f is implemented, we know that the transmitter will send 7 FCTs before sending NULLs
     def test_null_detected_in_rx():
-        while not (yield node.o_s):
+        while not (yield node.s_output):
             yield
         yield Delay(7 * CHAR_TIME_TX)
         yield from validate_multiple_symbol_received(SRCFREQ, BIT_TIME_TX, rx.o_got_null, 3)

@@ -8,3 +8,5 @@ build/
 *.il
 *_bmc
 *_cover
+dist/
+*egg-info

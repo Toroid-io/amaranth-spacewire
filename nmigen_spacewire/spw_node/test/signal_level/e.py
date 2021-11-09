@@ -23,18 +23,18 @@ def test_6_6_5_a_b():
     i_switch_to_user_tx_freq = Signal()
 
     m.d.comb += [
-        node.i_switch_to_user_tx_freq.eq(i_switch_to_user_tx_freq),
-        node.i_link_disabled.eq(0),
-        node.i_link_start.eq(1),
-        node.i_autostart.eq(1),
-        node.i_r_en.eq(0),
-        node.i_reset.eq(0),
-        node.i_tick.eq(0),
-        node.i_w_en.eq(0),
+        node.switch_to_user_tx_freq.eq(i_switch_to_user_tx_freq),
+        node.link_disabled.eq(0),
+        node.link_start.eq(1),
+        node.autostart.eq(1),
+        node.r_en.eq(0),
+        node.soft_reset.eq(0),
+        node.tick_input.eq(0),
+        node.w_en.eq(0),
 
         rx.i_reset.eq(0),
-        rx.i_d.eq(node.o_d),
-        rx.i_s.eq(node.o_s)
+        rx.i_d.eq(node.d_output),
+        rx.i_s.eq(node.s_output)
     ]
 
     sim = Simulator(m)
@@ -46,19 +46,19 @@ def test_6_6_5_a_b():
             yield
         for _ in range(100):
             if not sent_fct and (yield node.o_debug_fsm_state == SpWNodeFSMStates.CONNECTING):
-                yield from ds_sim_send_fct(node.i_d, node.i_s, BIT_TIME_TX_RESET)
+                yield from ds_sim_send_fct(node.d_input, node.s_input, BIT_TIME_TX_RESET)
                 sent_fct = True
             else:
-                yield from ds_sim_send_null(node.i_d, node.i_s, BIT_TIME_TX_RESET)
+                yield from ds_sim_send_null(node.d_input, node.s_input, BIT_TIME_TX_RESET)
 
     def test_null_detected_in_rx():
-        while not (yield node.o_s):
+        while not (yield node.s_output):
             yield
         yield Delay(7 * CHAR_TIME_TX_RESET)
         yield from validate_multiple_symbol_received(SRCFREQ, BIT_TIME_TX_RESET, rx.o_got_null, 3)
 
     def wait_before_change_freq_to_user():
-        while not (yield node.o_s):
+        while not (yield node.s_output):
             yield
         while (yield node.o_debug_fsm_state != SpWNodeFSMStates.RUN):
             yield Delay(CHAR_TIME_TX_RESET)

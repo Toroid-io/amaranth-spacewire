@@ -30,7 +30,7 @@ class SpWReceiver(Elaboratable):
 
     def elaborate(self, platform):
         m = Module()
-        m.submodules.decoder = decoder = DSDecoder()
+        m.submodules.ds_decoder = decoder = DSDecoder()
         m.submodules.store_en = store_en = DSStoreEnable()
         m.submodules.control_sr = control_sr = DSInputControlCharSR()
         m.submodules.data_sr = data_sr = DSInputDataCharSR()

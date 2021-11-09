@@ -5,4 +5,4 @@ from .d import tests as d_tests
 from .e import tests as e_tests
 from .f import tests as f_tests
 
-tests = d_tests#a_tests + b_tests + c_tests + d_tests + e_tests + f_tests
+tests = a_tests + b_tests + c_tests + d_tests + e_tests + f_tests
