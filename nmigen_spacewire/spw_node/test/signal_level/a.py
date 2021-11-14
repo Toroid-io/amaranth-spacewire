@@ -63,7 +63,7 @@ def test_6_3_2_a():
     def test_null_after_simultaneous():
         yield Delay(SIMSTART)
         yield Delay(CHAR_TIME * 10)
-        while (yield dut.o_debug_fsm_state != SpWNodeFSMStates.ERROR_WAIT):
+        while (yield dut.link_state != SpWNodeFSMStates.ERROR_WAIT):
             yield Delay(CHAR_TIME * 2)
         # Give a chance to sync with first ESC
         yield Delay(CHAR_TIME * 2)

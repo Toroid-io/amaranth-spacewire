@@ -43,17 +43,17 @@ def test_6_6_3():
 
     def send_nulls():
         sent_fct = False
-        while (yield node.o_debug_fsm_state != SpWNodeFSMStates.ERROR_WAIT):
+        while (yield node.link_state != SpWNodeFSMStates.ERROR_WAIT):
             yield
         for _ in range(50):
-            if not sent_fct and (yield node.o_debug_fsm_state == SpWNodeFSMStates.CONNECTING):
+            if not sent_fct and (yield node.link_state == SpWNodeFSMStates.CONNECTING):
                 yield from ds_sim_send_fct(node.d_input, node.s_input, 1/BIT_FREQ_RX)
                 sent_fct = True
             else:
                 yield from ds_sim_send_null(node.d_input, node.s_input, 1/BIT_FREQ_RX)
 
     def test_null_detected_in_node():
-        while (yield node.o_debug_fsm_state != SpWNodeFSMStates.ERROR_WAIT):
+        while (yield node.link_state != SpWNodeFSMStates.ERROR_WAIT):
             yield
         yield from validate_multiple_symbol_received(SRCFREQ, BIT_TIME_RX, node.o_debug_rx_got_null, 3)
 

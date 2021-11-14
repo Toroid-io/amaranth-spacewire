@@ -33,10 +33,10 @@ def test_6_6_6():
 
     def send_nulls():
         sent_fct = False
-        while (yield node.o_debug_fsm_state != SpWNodeFSMStates.ERROR_WAIT):
+        while (yield node.link_state != SpWNodeFSMStates.ERROR_WAIT):
             yield
         for _ in range(100):
-            if not sent_fct and (yield node.o_debug_fsm_state == SpWNodeFSMStates.CONNECTING):
+            if not sent_fct and (yield node.link_state == SpWNodeFSMStates.CONNECTING):
                 yield from ds_sim_send_fct(node.d_input, node.s_input, BIT_TIME_TX_RESET)
                 sent_fct = True
             else:
@@ -47,14 +47,14 @@ def test_6_6_6():
 
     def test():
         yield i_switch_to_user_tx_freq.eq(1)
-        while (yield node.o_debug_fsm_state != SpWNodeFSMStates.RUN):
+        while (yield node.link_state != SpWNodeFSMStates.RUN):
             yield
             yield Settle()
             assert(yield node.debug_tr.i_switch_to_user_tx_freq == 0)
         # Give some time for the transmitter to be ready again (this is when the
         # frequency will change).
         yield Delay(BIT_TIME_TX_RESET)
-        while (yield node.o_debug_fsm_state == SpWNodeFSMStates.RUN):
+        while (yield node.link_state == SpWNodeFSMStates.RUN):
             yield
             yield Settle()
             assert(yield node.debug_tr.i_switch_to_user_tx_freq == 1)

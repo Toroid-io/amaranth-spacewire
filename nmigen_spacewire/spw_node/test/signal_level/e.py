@@ -42,10 +42,10 @@ def test_6_6_5_a_b():
 
     def send_nulls():
         sent_fct = False
-        while (yield node.o_debug_fsm_state != SpWNodeFSMStates.ERROR_WAIT):
+        while (yield node.link_state != SpWNodeFSMStates.ERROR_WAIT):
             yield
         for _ in range(100):
-            if not sent_fct and (yield node.o_debug_fsm_state == SpWNodeFSMStates.CONNECTING):
+            if not sent_fct and (yield node.link_state == SpWNodeFSMStates.CONNECTING):
                 yield from ds_sim_send_fct(node.d_input, node.s_input, BIT_TIME_TX_RESET)
                 sent_fct = True
             else:
@@ -60,7 +60,7 @@ def test_6_6_5_a_b():
     def wait_before_change_freq_to_user():
         while not (yield node.s_output):
             yield
-        while (yield node.o_debug_fsm_state != SpWNodeFSMStates.RUN):
+        while (yield node.link_state != SpWNodeFSMStates.RUN):
             yield Delay(CHAR_TIME_TX_RESET)
         for _ in range(10):
             yield Delay(CHAR_TIME_TX_RESET)
