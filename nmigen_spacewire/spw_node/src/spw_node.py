@@ -22,20 +22,18 @@ class SpWNodeFSMStates(enum.Enum):
 
 class SpWNode(Elaboratable):
     def __init__(self, srcfreq, txfreq, transission_delay=12.8e-6, disconnect_delay=850e-9, time_master=True, debug=False):
-        self.soft_reset = Signal()
-        self.switch_to_user_tx_freq = Signal()
+        # Data/Strobe
         self.d_input = Signal()
         self.s_input = Signal()
-        self.link_disabled = Signal()
-        self.link_start = Signal()
-        self.autostart = Signal()
-        self.tick_input = Signal()
+        self.d_output = Signal()
+        self.s_output = Signal()
+
+        # Time functions
+        if time_master:
+            self.tick_input = Signal()
         self.tick_output = Signal()
         self.time_flags = Signal(2)
         self.time_value = Signal(6)
-        self.link_error = Signal()
-        self.d_output = Signal()
-        self.s_output = Signal()
 
         # FIFO
         self.r_en = Signal()
@@ -45,17 +43,28 @@ class SpWNode(Elaboratable):
         self.w_data = Signal(8)
         self.w_rdy = Signal()
 
+        # Status signals
+        self.link_state = Signal(SpWNodeFSMStates)
+        self.link_error = Signal()
+
+        # Control signals
+        self.soft_reset = Signal()
+        self.switch_to_user_tx_freq = Signal()
+        self.link_disabled = Signal()
+        self.link_start = Signal()
+        self.autostart = Signal()
+        self.link_error_clear = Signal()
+
         self._srcfreq = srcfreq
         self._txfreq = txfreq
         self._transission_delay = transission_delay
         self._disconnect_delay = disconnect_delay
-        self._time_master = time_master
+        self._time_master = Const(1 if time_master else 0)
 
         self._debug = debug
         if debug:
             self.o_debug_rx_got_null = Signal()
             self.o_debug_rx_got_fct = Signal()
-            self.o_debug_fsm_state = Signal(SpWNodeFSMStates)
             self.debug_tr = None
             self.o_debug_time_counter = Signal(6)
             self.o_debug_tr_send_time = Signal()
@@ -118,7 +127,7 @@ class SpWNode(Elaboratable):
                     gotNULL.eq(0),
                 ]
 
-                with m.If(self.soft_reset):
+                with m.If(self.soft_reset | self.link_error):
                     pass
                 with m.Elif(delay.o_half_elapsed):
                     m.d.comb += delay.i_reset.eq(1)
@@ -129,7 +138,7 @@ class SpWNode(Elaboratable):
                 m.d.comb += rx.i_reset.eq(0)
                 m.d.comb += tr.i_reset.eq(1)
 
-                with m.If((rx_error | (gotNULL & (rx.o_got_fct | rx.o_got_data | rx.o_got_timecode))) == 1):
+                with m.If(self.soft_reset | rx_error | (gotNULL & (rx.o_got_fct | rx.o_got_data | rx.o_got_timecode))):
                     m.d.comb += delay.i_reset.eq(1)
                     m.next = SpWNodeFSMStates.ERROR_RESET
                 with m.Elif(delay.o_elapsed == 1):
@@ -143,7 +152,7 @@ class SpWNode(Elaboratable):
                 m.d.comb += rx.i_reset.eq(0)
                 m.d.comb += tr.i_reset.eq(1)
 
-                with m.If((rx_error | (gotNULL & (rx.o_got_fct | rx.o_got_data | rx.o_got_timecode))) == 1):
+                with m.If(self.soft_reset | rx_error | (gotNULL & (rx.o_got_fct | rx.o_got_data | rx.o_got_timecode))):
                     m.d.comb += delay.i_reset.eq(1)
                     m.next = SpWNodeFSMStates.ERROR_RESET
                 with m.Elif(link_enabled == 1):
@@ -154,7 +163,7 @@ class SpWNode(Elaboratable):
                 m.d.comb += rx.i_reset.eq(0)
                 m.d.comb += tr.i_reset.eq(0)
 
-                with m.If((rx_error | (gotNULL & (rx.o_got_fct | rx.o_got_data | rx.o_got_timecode)) | delay.o_elapsed) == 1):
+                with m.If(self.soft_reset | rx_error | (gotNULL & (rx.o_got_fct | rx.o_got_data | rx.o_got_timecode)) | delay.o_elapsed):
                     m.d.comb += delay.i_reset.eq(1)
                     m.next = SpWNodeFSMStates.ERROR_RESET
                 with m.Elif((gotNULL | rx.o_got_null) == 1):
@@ -168,7 +177,7 @@ class SpWNode(Elaboratable):
                 m.d.comb += tr.i_reset.eq(0)
                 m.d.comb += tr.i_send_fct.eq((rx_tokens_count > 0) & (tr.o_ready == 1))
 
-                with m.If((rx_error | rx.o_got_data | rx.o_got_timecode | delay.o_elapsed) == 1):
+                with m.If(self.soft_reset | rx_error | rx.o_got_data | rx.o_got_timecode | delay.o_elapsed):
                     m.d.comb += delay.i_reset.eq(1)
                     m.next = SpWNodeFSMStates.ERROR_RESET
                 with m.Elif(rx.o_got_fct == 1):
@@ -182,7 +191,7 @@ class SpWNode(Elaboratable):
                 m.d.comb += tr.i_reset.eq(0)
                 m.d.comb += tr_pre_send.eq((tx_fifo.level > 0) & tr.o_ready & (tx_credit > 0) & tx_fifo.r_rdy)
 
-                with m.If((rx_error | tx_credit_error | self.link_disabled) == 1):
+                with m.If(self.soft_reset | rx_error | tx_credit_error | self.link_disabled):
                     m.d.comb += delay.i_reset.eq(1)
                     m.next = SpWNodeFSMStates.ERROR_RESET
                 with m.Else():
@@ -225,28 +234,35 @@ class SpWNode(Elaboratable):
                     m.d.sync += rx_tokens_count.eq(rx_tokens_count - 1)
 
         # Link error
-        m.d.comb += self.link_error.eq(main_fsm.ongoing(SpWNodeFSMStates.RUN) & (rx_error | tx_credit_error))
+        with m.If(self.soft_reset | self.link_error_clear):
+            m.d.sync += self.link_error.eq(0)
+        with m.If(main_fsm.ongoing(SpWNodeFSMStates.RUN) & (rx_error | tx_credit_error)):
+            m.d.sync += self.link_error.eq(1)
 
         # Time management
         with m.If(self.soft_reset):
-            m.d.sync += time_counter.eq(0)
-        with m.Elif(self.tick_input & self._time_master):
-            m.d.sync += [time_counter.eq(time_counter + 1), time_updated.eq(1)]
-        with m.Elif(tr.i_send_time):
-            m.d.sync += time_updated.eq(0)
-        with m.Elif(rx.o_got_timecode & (not self._time_master)):
-            with m.If(rx.o_data_char[0:6] == (time_counter + 1)):
-                # Output tick + store flags + store counter
-                m.d.sync += [
-                    self.tick_output.eq(1),
-                    self.time_value.eq(time_counter + 1),
-                    self.time_flags.eq(rx.o_data_char[6:8]),
-                    time_counter.eq(time_counter + 1)
-                ]
-            with m.Elif(rx.o_data_char[0:6] != time_counter):
-                m.d.sync += time_counter.eq(rx.o_data_char[0:6])
+            m.d.sync += [
+                time_counter.eq(0),
+                self.time_value.eq(0),
+                self.time_flags.eq(0)
+            ]
+        with m.Elif(self._time_master):
+            with m.If(self.tick_input):
+                m.d.sync += [time_counter.eq(time_counter + 1), time_updated.eq(1)]
+            with m.Elif(tr.i_send_time):
+                m.d.sync += time_updated.eq(0)
         with m.Else():
-            m.d.sync += self.tick_output.eq(0)
+            with m.If(rx.o_got_timecode):
+                with m.If(rx.o_data_char[0:6] == (time_counter + 1)):
+                    # Output tick + store flags + store counter
+                    m.d.comb += self.tick_output.eq(1)
+                    m.d.sync += [
+                        self.time_value.eq(time_counter + 1),
+                        self.time_flags.eq(rx.o_data_char[6:8]),
+                        time_counter.eq(time_counter + 1)
+                    ]
+                with m.Elif(rx.o_data_char[0:6] != time_counter):
+                    m.d.sync += time_counter.eq(rx.o_data_char[0:6])
 
         # User TX Frequency management
         with m.If(main_fsm.ongoing(SpWNodeFSMStates.RUN) & self.switch_to_user_tx_freq & tr.o_ready):
@@ -254,11 +270,12 @@ class SpWNode(Elaboratable):
         with m.Elif(~main_fsm.ongoing(SpWNodeFSMStates.RUN) | ~self.switch_to_user_tx_freq & tr.o_ready):
             m.d.sync += use_user_tx_freq.eq(0)
 
+        m.d.comb += self.link_state.eq(main_fsm.state)
+
         if self._debug:
             m.d.comb += [
                 self.o_debug_rx_got_null.eq(rx.o_got_null),
                 self.o_debug_rx_got_fct.eq(rx.o_got_fct),
-                self.o_debug_fsm_state.eq(main_fsm.state),
                 self.o_debug_time_counter.eq(time_counter),
                 self.o_debug_tr_send_time.eq(tr.i_send_time),
                 self.o_debug_tr_fsm_state.eq(tr.o_debug_fsm_state),
@@ -274,13 +291,13 @@ class SpWNode(Elaboratable):
             self.link_start, self.autostart, self.tick_input, self.tick_output,
             self.time_flags, self.time_value, self.link_error, self.d_output,
             self.s_output, self.r_en, self.r_data, self.r_rdy, self.w_en, self.w_data,
-            self.w_rdy, self.switch_to_user_tx_freq
+            self.w_rdy, self.switch_to_user_tx_freq, self.link_state, self.link_error_clear
         ]
 
 
 if __name__ == '__main__':
     srcfreq = 50e6
-    linkfreq = 45e6
+    linkfreq = 25e6
     i_link_disable = Signal()
     i_autostart = Signal(reset=1)
     i_link_start = Signal(reset=1)
@@ -288,12 +305,12 @@ if __name__ == '__main__':
     m = Module()
     m.submodules.fsm = fsm = SpWNode(srcfreq, linkfreq)
     m.d.comb += [
-        fsm.i_link_disabled.eq(i_link_disable),
-        fsm.i_link_start.eq(i_link_start),
-        fsm.i_autostart.eq(i_autostart),
-        fsm.i_tick.eq(i_tick),
-        fsm.i_d.eq(fsm.o_d),
-        fsm.i_s.eq(fsm.o_s)
+        fsm.link_disabled.eq(i_link_disable),
+        fsm.link_start.eq(i_link_start),
+        fsm.autostart.eq(i_autostart),
+        fsm.tick_input.eq(i_tick),
+        fsm.d_input.eq(fsm.d_output),
+        fsm.s_input.eq(fsm.s_output)
     ]
 
     sim = Simulator(m)
@@ -305,10 +322,10 @@ if __name__ == '__main__':
         for _ in range(ds_sim_period_to_ticks(30e-6, srcfreq)):
             yield
         for i in range(40):
-            yield fsm.i_w_en.eq(1)
-            yield fsm.i_w_data.eq(ord('A')+i)
+            yield fsm.w_en.eq(1)
+            yield fsm.w_data.eq(ord('A')+i)
             yield
-        yield fsm.i_w_en.eq(0)
+        yield fsm.w_en.eq(0)
         for _ in range(ds_sim_period_to_ticks(100e-6, srcfreq)):
             yield
 
@@ -325,10 +342,10 @@ if __name__ == '__main__':
         for _ in range(ds_sim_period_to_ticks(400e-6, srcfreq)):
             yield
         while True:
-            if (yield fsm.o_r_rdy):
-                yield fsm.i_r_en.eq(1)
+            if (yield fsm.r_rdy):
+                yield fsm.r_en.eq(1)
             else:
-                yield fsm.i_r_en.eq(0)
+                yield fsm.r_en.eq(0)
             yield
 
     sim.add_sync_process(test)
