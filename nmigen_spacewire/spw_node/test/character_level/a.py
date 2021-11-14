@@ -38,7 +38,7 @@ def test_7_3_b():
     def monitor_send_null():
         yield Delay(SIMSTART)
         for _ in range(ds_sim_period_to_ticks(200e-6, SRCFREQ)):
-            if ( (yield dut.debug_tr.o_debug_fsm_state == SpWTransmitterStates.WAIT) &
+            if ( (yield dut.debug_tr.link_state == SpWTransmitterStates.WAIT) &
                  (yield dut.debug_tr.o_ready) &
                  ~ (yield dut.debug_tr.i_send_char) &
                  ~ (yield dut.debug_tr.i_send_eep) &
@@ -46,9 +46,9 @@ def test_7_3_b():
                  ~ (yield dut.debug_tr.i_send_esc) &
                  ~ (yield dut.debug_tr.i_send_fct) &
                  ~ (yield dut.debug_tr.i_send_time)):
-                while(yield dut.debug_tr.o_debug_fsm_state == SpWTransmitterStates.WAIT):
+                while(yield dut.debug_tr.link_state == SpWTransmitterStates.WAIT):
                     yield Delay(BIT_TIME/4)
-                assert(yield dut.debug_tr.o_debug_fsm_state == SpWTransmitterStates.SEND_NULL_A)
+                assert(yield dut.debug_tr.link_state == SpWTransmitterStates.SEND_NULL_A)
             else:
                 yield
 
