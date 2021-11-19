@@ -47,15 +47,11 @@ def test_6_6_6():
 
     def test():
         yield i_switch_to_user_tx_freq.eq(1)
-        while (yield node.link_state != SpWNodeFSMStates.RUN):
+        while ((yield node.link_state != SpWNodeFSMStates.RUN) and not (yield node.debug_tr.o_ready)):
             yield
             yield Settle()
             assert(yield node.debug_tr.i_switch_to_user_tx_freq == 0)
-        # Give some time for the transmitter to be ready again (this is when the
-        # frequency will change).
-        yield Delay(BIT_TIME_TX_RESET)
         while (yield node.link_state == SpWNodeFSMStates.RUN):
-            yield
             yield Settle()
             assert(yield node.debug_tr.i_switch_to_user_tx_freq == 1)
         yield

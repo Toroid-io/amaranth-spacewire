@@ -29,8 +29,7 @@ class SpWNode(Elaboratable):
         self.s_output = Signal()
 
         # Time functions
-        if time_master:
-            self.tick_input = Signal()
+        self.tick_input = Signal()
         self.tick_output = Signal()
         self.time_flags = Signal(2)
         self.time_value = Signal(6)
@@ -87,6 +86,7 @@ class SpWNode(Elaboratable):
         tx_credit_error = Signal()
         read_in_progress = Signal()
         gotNULL = Signal()
+        sentNULL = Signal()
         time_counter = Signal(6)
         time_updated = Signal()
         link_enabled = Signal()
@@ -123,12 +123,19 @@ class SpWNode(Elaboratable):
                 m.d.comb += tr.i_reset.eq(1)
                 m.d.sync += [
                     rx_tokens_count.eq(7),
+                    rx_read_counter.eq(0),
                     tx_credit.eq(0),
+                    tx_credit_error.eq(0),
                     gotNULL.eq(0),
+                    sentNULL.eq(0),
+                    time_counter.eq(0),
+                    self.time_value.eq(0),
+                    self.time_flags.eq(0),
+                    time_updated.eq(0)
                 ]
 
                 with m.If(self.soft_reset | self.link_error):
-                    pass
+                    m.d.comb += delay.i_reset.eq(1)
                 with m.Elif(delay.o_half_elapsed):
                     m.d.comb += delay.i_reset.eq(1)
                     m.next = SpWNodeFSMStates.ERROR_WAIT
@@ -162,11 +169,12 @@ class SpWNode(Elaboratable):
             with m.State(SpWNodeFSMStates.STARTED):
                 m.d.comb += rx.i_reset.eq(0)
                 m.d.comb += tr.i_reset.eq(0)
+                m.d.sync += sentNULL.eq(tr.o_ready | sentNULL)
 
                 with m.If(self.soft_reset | rx_error | (gotNULL & (rx.o_got_fct | rx.o_got_data | rx.o_got_timecode)) | delay.o_elapsed):
                     m.d.comb += delay.i_reset.eq(1)
                     m.next = SpWNodeFSMStates.ERROR_RESET
-                with m.Elif((gotNULL | rx.o_got_null) == 1):
+                with m.Elif(gotNULL | rx.o_got_null):
                     m.d.sync += gotNULL.eq(1)
                     m.d.comb += delay.i_reset.eq(1)
                     m.next = SpWNodeFSMStates.CONNECTING
@@ -175,7 +183,8 @@ class SpWNode(Elaboratable):
             with m.State(SpWNodeFSMStates.CONNECTING):
                 m.d.comb += rx.i_reset.eq(0)
                 m.d.comb += tr.i_reset.eq(0)
-                m.d.comb += tr.i_send_fct.eq((rx_tokens_count > 0) & (tr.o_ready == 1))
+                m.d.comb += tr.i_send_fct.eq((rx_tokens_count > 0) & (tr.o_ready == 1) & sentNULL)
+                m.d.sync += sentNULL.eq(tr.o_ready | sentNULL)
 
                 with m.If(self.soft_reset | rx_error | rx.o_got_data | rx.o_got_timecode | delay.o_elapsed):
                     m.d.comb += delay.i_reset.eq(1)
@@ -236,22 +245,16 @@ class SpWNode(Elaboratable):
         # Link error
         with m.If(self.soft_reset | self.link_error_clear):
             m.d.sync += self.link_error.eq(0)
-        with m.If(main_fsm.ongoing(SpWNodeFSMStates.RUN) & (rx_error | tx_credit_error)):
+        with m.Elif(main_fsm.ongoing(SpWNodeFSMStates.RUN) & (rx_error | tx_credit_error)):
             m.d.sync += self.link_error.eq(1)
 
         # Time management
-        with m.If(self.soft_reset):
-            m.d.sync += [
-                time_counter.eq(0),
-                self.time_value.eq(0),
-                self.time_flags.eq(0)
-            ]
-        with m.Elif(self._time_master):
+        with m.If(~self.soft_reset & self._time_master):
             with m.If(self.tick_input):
                 m.d.sync += [time_counter.eq(time_counter + 1), time_updated.eq(1)]
             with m.Elif(tr.i_send_time):
                 m.d.sync += time_updated.eq(0)
-        with m.Else():
+        with m.Elif(~self.soft_reset):
             with m.If(rx.o_got_timecode):
                 with m.If(rx.o_data_char[0:6] == (time_counter + 1)):
                     # Output tick + store flags + store counter

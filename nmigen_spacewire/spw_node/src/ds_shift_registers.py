@@ -74,7 +74,7 @@ class DSOutputCharSR(Elaboratable):
                     ]
                     m.next = "SEND_CONTENT"
             with m.State("SEND_CONTENT"):
-                with m.If(self.i_reset == 1):
+                with m.If(self.i_reset):
                     m.next = "WAIT"
                 with m.Else():
                     for i in range(7):
@@ -99,7 +99,6 @@ class DSOutputCharSR(Elaboratable):
                     m.d.sync += [
                         counter.eq(counter + 1)
                     ]
-
 
         return m
 

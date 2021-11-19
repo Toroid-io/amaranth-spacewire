@@ -1,5 +1,6 @@
 from nmigen import *
 from nmigen.sim import Simulator, Delay
+from nmigen.lib.cdc import FFSynchronizer
 from .ds_shift_registers import DSInputControlCharSR, DSInputDataCharSR
 from .ds_decoder import DSDecoder
 from .ds_store_enable import DSStoreEnable
@@ -90,10 +91,11 @@ class SpWReceiver(Elaboratable):
                 self.o_escape_error.eq(0)
             ]
 
+        m.submodules += FFSynchronizer(self.i_d, decoder.i_d, reset=0)
+        m.submodules += FFSynchronizer(self.i_s, decoder.i_s, reset=0)
+
         m.d.comb += [
             store_en.i_reset.eq(self.i_reset),
-            decoder.i_d.eq(self.i_d),
-            decoder.i_s.eq(self.i_s),
             store_en.i_d.eq(decoder.o_d),
             store_en.i_clk_ddr.eq(decoder.o_clk_ddr),
             control_sr.i_input.eq(store_en.o_d),
@@ -124,15 +126,15 @@ class SpWReceiver(Elaboratable):
         ]
 
         # Manage counter
-        with m.If(self.i_reset == 1):
+        with m.If(self.i_reset):
             m.d.sync += counter.eq(0)
-        with m.Elif((store_en.o_store_en & counter_full) == 1):
+        with m.Elif(store_en.o_store_en & counter_full):
             m.d.sync += counter.eq(1)
-        with m.Elif(counter_full == 1):
+        with m.Elif(counter_full):
             # Put the counter to zero to avoid double output (remember
             # the sync clock is faster than the character clock)
             m.d.sync += counter.eq(0)
-        with m.Elif(store_en.o_store_en == 1):
+        with m.Elif(store_en.o_store_en):
             m.d.sync += counter.eq(counter + 1)
         with m.Else():
             m.d.sync += counter.eq(counter)
@@ -149,7 +151,7 @@ class SpWReceiver(Elaboratable):
                     ]
                     m.next = "READ_HEADER"
             with m.State("READ_HEADER"):
-                with m.If(self.i_reset == 1):
+                with m.If(self.i_reset):
                     m.next = "SYNC"
                 with m.Elif(counter == 2):
                     with m.If(control_sr.o_char[3] == 1):
@@ -159,16 +161,16 @@ class SpWReceiver(Elaboratable):
                         m.next = "READ_DATA_CHAR"
                         m.d.sync += counter_limit.eq(10)
 
-                    with m.If(((parity_prev ^ control_sr.o_char[2]) ^ control_sr.o_char[3]) == 1):
+                    with m.If((parity_prev ^ control_sr.o_char[2]) ^ control_sr.o_char[3]):
                         with m.If(prev_char_type == 0):
                             with m.Switch(prev_control_char_wait_parity):
                                 with m.Case("001-"):
-                                    with m.If(prev_got_esc == 1):
+                                    with m.If(prev_got_esc):
                                         m.d.sync += [self.o_got_null.eq(1), prev_got_esc.eq(0)]
                                     with m.Else():
                                         m.d.sync += [self.o_got_fct.eq(1), prev_got_eop.eq(0), prev_got_eep.eq(0)]
                                 with m.Case("101-"):
-                                    with m.If(prev_got_esc == 1):
+                                    with m.If(prev_got_esc):
                                         m.d.sync += [self.o_escape_error.eq(1)]
                                         m.next = "ERROR"
                                     with m.Elif(prev_got_eep | prev_got_eop):
@@ -176,7 +178,7 @@ class SpWReceiver(Elaboratable):
                                     with m.Else():
                                         m.d.sync += [self.o_got_eop.eq(1), prev_got_eop.eq(1), prev_got_eep.eq(0)]
                                 with m.Case("010-"):
-                                    with m.If(prev_got_esc == 1):
+                                    with m.If(prev_got_esc):
                                         m.d.sync += [self.o_escape_error.eq(1)]
                                         m.next = "ERROR"
                                     with m.Elif(prev_got_eep | prev_got_eop):
@@ -184,13 +186,13 @@ class SpWReceiver(Elaboratable):
                                     with m.Else():
                                         m.d.sync += [self.o_got_eep.eq(1), prev_got_eep.eq(1), prev_got_eop.eq(0)]
                                 with m.Case("111-"):
-                                    with m.If(prev_got_esc == 1):
+                                    with m.If(prev_got_esc):
                                         m.d.sync += [self.o_escape_error.eq(1)]
                                         m.next = "ERROR"
                                     with m.Else():
                                         m.d.sync += [self.o_got_esc.eq(1), prev_got_esc.eq(1), prev_got_eep.eq(0), prev_got_eop.eq(0)]
                         with m.Else():
-                            with m.If(prev_got_esc == 1):
+                            with m.If(prev_got_esc):
                                 m.d.sync += [self.o_got_timecode.eq(1), prev_got_esc.eq(0)]
                             with m.Else():
                                 m.d.sync += self.o_got_data.eq(1)
@@ -202,29 +204,29 @@ class SpWReceiver(Elaboratable):
                         ]
                         m.next = "ERROR"
             with m.State("READ_CONTROL_CHAR"):
-                with m.If(self.i_reset == 1):
+                with m.If(self.i_reset):
                     m.next = "SYNC"
-                with m.Elif((counter_full & control_sr.o_detected) == 1):
+                with m.Elif(counter_full & control_sr.o_detected):
                     m.d.sync += [
                         parity_prev.eq(parity_control_next),
                         prev_control_char_wait_parity.eq(control_sr.o_char),
                         prev_char_type.eq(0)
                     ]
                     m.next = "READ_HEADER"
-                with m.Elif((counter_full & ~control_sr.o_detected) == 1):
+                with m.Elif(counter_full & ~control_sr.o_detected):
                     m.d.sync += self.o_read_error.eq(1)
                     m.next = "ERROR"
             with m.State("READ_DATA_CHAR"):
-                with m.If(self.i_reset == 1):
+                with m.If(self.i_reset):
                     m.next = "SYNC"
-                with m.Elif((counter_full & data_sr.o_detected) == 1):
+                with m.Elif(counter_full & data_sr.o_detected):
                     m.d.sync += [
                         parity_prev.eq(parity_data_next),
                         prev_data_char_wait_parity.eq(data_sr.o_char[2:10]),
                         prev_char_type.eq(1)
                     ]
                     m.next = "READ_HEADER"
-                with m.Elif((counter_full & ~control_sr.o_detected) == 1):
+                with m.Elif(counter_full & ~control_sr.o_detected):
                     m.d.sync += self.o_read_error.eq(1)
                     m.next = "ERROR"
             with m.State("ERROR"):

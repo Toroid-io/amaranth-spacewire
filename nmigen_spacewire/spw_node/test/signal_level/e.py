@@ -54,7 +54,9 @@ def test_6_6_5_a_b():
     def test_null_detected_in_rx():
         while not (yield node.s_output):
             yield
-        yield Delay(7 * CHAR_TIME_TX_RESET)
+        yield Delay(2 * CHAR_TIME_TX_RESET)
+        waited = yield from validate_symbol_received(SRCFREQ, BIT_TIME_TX_RESET, rx.o_got_null)
+        yield Delay(7 * CHAR_TIME_TX_RESET - waited)
         yield from validate_multiple_symbol_received(SRCFREQ, BIT_TIME_TX_RESET, rx.o_got_null, 3)
 
     def wait_before_change_freq_to_user():
@@ -62,7 +64,7 @@ def test_6_6_5_a_b():
             yield
         while (yield node.link_state != SpWNodeFSMStates.RUN):
             yield Delay(CHAR_TIME_TX_RESET)
-        for _ in range(10):
+        for _ in range(15):
             yield Delay(CHAR_TIME_TX_RESET)
 
     def wait_user_freq_started():

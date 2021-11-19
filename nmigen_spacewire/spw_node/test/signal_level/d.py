@@ -57,12 +57,14 @@ def test_6_6_3():
             yield
         yield from validate_multiple_symbol_received(SRCFREQ, BIT_TIME_RX, node.o_debug_rx_got_null, 3)
 
-    # Until 8.5.2.5.f is implemented, we know that the transmitter will send 7 FCTs before sending NULLs
+    # As we are sending NULLs from the beginning, there will be 1 NULL then 7 FCTs then NULLs
     def test_null_detected_in_rx():
         while not (yield node.s_output):
             yield
-        yield Delay(7 * CHAR_TIME_TX)
-        yield from validate_multiple_symbol_received(SRCFREQ, BIT_TIME_TX, rx.o_got_null, 3)
+        yield Delay(2 * CHAR_TIME_TX)
+        waited = yield from validate_symbol_received(SRCFREQ, BIT_TIME_TX, rx.o_got_null)
+        yield Delay(7 * CHAR_TIME_TX - waited)
+        yield from validate_multiple_symbol_received(SRCFREQ, BIT_TIME_TX, rx.o_got_null, 10)
 
     sim.add_sync_process(send_nulls)
     sim.add_sync_process(test_null_detected_in_node)

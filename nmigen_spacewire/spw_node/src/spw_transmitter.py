@@ -157,16 +157,20 @@ class SpWTransmitter(Elaboratable):
             with m.State(SpWTransmitterStates.SEND_NULL_A):
                 with m.If(self.i_reset):
                     m.next = SpWTransmitterStates.WAIT
-                    sr.i_send_control.eq(0)
-                    sr.i_send_data.eq(0)
+                    m.d.sync += [
+                        sr.i_send_control.eq(0),
+                        sr.i_send_data.eq(0)
+                    ]
                 with m.Elif(sr.o_ready == 0):
                     m.d.sync += sr.i_send_control.eq(0)
                     m.next = SpWTransmitterStates.SEND_NULL_B
             with m.State(SpWTransmitterStates.SEND_NULL_B):
                 with m.If(self.i_reset):
                     m.next = SpWTransmitterStates.WAIT
-                    sr.i_send_control.eq(0)
-                    sr.i_send_data.eq(0)
+                    m.d.sync += [
+                        sr.i_send_control.eq(0),
+                        sr.i_send_data.eq(0)
+                    ]
                 with m.Elif(sr.o_ready == 1):
                     m.d.sync += [
                         sr.i_send_control.eq(1),
@@ -176,32 +180,40 @@ class SpWTransmitter(Elaboratable):
             with m.State(SpWTransmitterStates.SEND_NULL_C):
                 with m.If(self.i_reset):
                     m.next = SpWTransmitterStates.WAIT
-                    sr.i_send_control.eq(0)
-                    sr.i_send_data.eq(0)
+                    m.d.sync += [
+                        sr.i_send_control.eq(0),
+                        sr.i_send_data.eq(0)
+                    ]
                 with m.Elif(sr.o_ready == 0):
                     m.d.sync += sr.i_send_control.eq(0)
                     m.next = SpWTransmitterStates.WAIT
             with m.State(SpWTransmitterStates.WAIT_TX_START_CONTROL):
                 with m.If(self.i_reset):
                     m.next = SpWTransmitterStates.WAIT
-                    sr.i_send_control.eq(0)
-                    sr.i_send_data.eq(0)
+                    m.d.sync += [
+                        sr.i_send_control.eq(0),
+                        sr.i_send_data.eq(0)
+                    ]
                 with m.Elif(sr.o_ready == 0):
                     m.d.sync += sr.i_send_control.eq(0)
                     m.next = SpWTransmitterStates.WAIT
             with m.State(SpWTransmitterStates.WAIT_TX_START_DATA):
                 with m.If(self.i_reset):
                     m.next = SpWTransmitterStates.WAIT
-                    sr.i_send_control.eq(0)
-                    sr.i_send_data.eq(0)
+                    m.d.sync += [
+                        sr.i_send_control.eq(0),
+                        sr.i_send_data.eq(0)
+                    ]
                 with m.Elif(sr.o_ready == 0):
                     m.d.sync += sr.i_send_data.eq(0)
                     m.next = SpWTransmitterStates.WAIT
             with m.State(SpWTransmitterStates.SEND_TIME_A):
                 with m.If(self.i_reset):
                     m.next = SpWTransmitterStates.WAIT
-                    sr.i_send_control.eq(0)
-                    sr.i_send_data.eq(0)
+                    m.d.sync += [
+                        sr.i_send_control.eq(0),
+                        sr.i_send_data.eq(0)
+                    ]
                 with m.Elif(sr.o_ready == 0):
                     m.d.sync += [
                         sr.i_send_control.eq(0),
@@ -210,8 +222,10 @@ class SpWTransmitter(Elaboratable):
             with m.State(SpWTransmitterStates.SEND_TIME_B):
                 with m.If(self.i_reset):
                     m.next = SpWTransmitterStates.WAIT
-                    sr.i_send_control.eq(0)
-                    sr.i_send_data.eq(0)
+                    m.d.sync += [
+                        sr.i_send_control.eq(0),
+                        sr.i_send_data.eq(0)
+                    ]
                 with m.Elif(sr.o_ready == 1):
                     m.d.sync += [
                         sr.i_send_data.eq(1),
@@ -221,8 +235,10 @@ class SpWTransmitter(Elaboratable):
             with m.State(SpWTransmitterStates.SEND_TIME_C):
                 with m.If(self.i_reset):
                     m.next = SpWTransmitterStates.WAIT
-                    sr.i_send_control.eq(0)
-                    sr.i_send_data.eq(0)
+                    m.d.sync += [
+                        sr.i_send_control.eq(0),
+                        sr.i_send_data.eq(0)
+                    ]
                 with m.Elif(sr.o_ready == 0):
                     m.d.sync += [
                         sr.i_send_data.eq(0)

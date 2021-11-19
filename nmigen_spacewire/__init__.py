@@ -1,3 +1,3 @@
-from nmigen_spacewire.spw_node.src.spw_node import SpWNode
+from nmigen_spacewire.spw_node.src.spw_node import SpWNode, SpWNodeFSMStates
 
-__all__ = ["SpWNode"]
+__all__ = ["SpWNode", "SpWNodeFSMStates"]
