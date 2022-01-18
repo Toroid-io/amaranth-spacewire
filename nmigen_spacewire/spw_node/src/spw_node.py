@@ -53,6 +53,7 @@ class SpWNode(Elaboratable):
         self.link_start = Signal()
         self.autostart = Signal()
         self.link_error_clear = Signal()
+        self.link_autorecover = Signal()
 
         self._srcfreq = srcfreq
         self._txfreq = txfreq
@@ -134,7 +135,7 @@ class SpWNode(Elaboratable):
                     time_updated.eq(0)
                 ]
 
-                with m.If(self.soft_reset | self.link_error):
+                with m.If(self.soft_reset | (self.link_error & ~self.link_autorecover)):
                     m.d.comb += delay.i_reset.eq(1)
                 with m.Elif(delay.o_half_elapsed):
                     m.d.comb += delay.i_reset.eq(1)
@@ -294,7 +295,8 @@ class SpWNode(Elaboratable):
             self.link_start, self.autostart, self.tick_input, self.tick_output,
             self.time_flags, self.time_value, self.link_error, self.d_output,
             self.s_output, self.r_en, self.r_data, self.r_rdy, self.w_en, self.w_data,
-            self.w_rdy, self.switch_to_user_tx_freq, self.link_state, self.link_error_clear
+            self.w_rdy, self.switch_to_user_tx_freq, self.link_state, self.link_error_clear,
+            self.link_autorecover
         ]
 
 
