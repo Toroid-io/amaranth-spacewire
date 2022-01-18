@@ -1,4 +1,4 @@
-from nmigen.sim import Delay
+from amaranth.sim import Delay
 from bitarray import bitarray
 from bitarray.util import int2ba
 import math

@@ -1,14 +1,14 @@
 import enum
 import math
 
-from nmigen import *
-from nmigen.lib.fifo import SyncFIFOBuffered
-from nmigen.sim import Simulator
+from amaranth import *
+from amaranth.lib.fifo import SyncFIFOBuffered
+from amaranth.sim import Simulator
 from .spw_transmitter import SpWTransmitter, SpWTransmitterStates
 from .spw_receiver import SpWReceiver
 from .spw_delay import SpWDelay
 from .spw_sim_utils import *
-from nmigen_boards.de0_nano import DE0NanoPlatform
+from amaranth_boards.de0_nano import DE0NanoPlatform
 
 
 class SpWNodeFSMStates(enum.Enum):

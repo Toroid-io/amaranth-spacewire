@@ -1,12 +1,12 @@
 import enum
-from nmigen import *
-from nmigen.sim import Simulator, Delay
+from amaranth import *
+from amaranth.sim import Simulator, Delay
 from .ds_shift_registers import DSOutputCharSR
 from .ds_encoder import DSEncoder
 from .clock_divider import ClockDivider
 from .clock_mux import ClockMux
 from bitarray import bitarray
-from nmigen_boards.de0_nano import DE0NanoPlatform
+from amaranth_boards.de0_nano import DE0NanoPlatform
 
 
 class WrongSignallingRate(Exception):

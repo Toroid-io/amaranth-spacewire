@@ -1,5 +1,5 @@
-from nmigen import *
-from nmigen.sim import Simulator
+from amaranth import *
+from amaranth.sim import Simulator
 
 
 class PulseGenerator(Elaboratable):

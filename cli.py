@@ -1,8 +1,8 @@
 import argparse
 import warnings
-from nmigen import cli
+from amaranth import cli
 
-from nmigen_spacewire import SpWNode
+from amaranth_spacewire import SpWNode
 
 def main():
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -27,7 +27,7 @@ def main():
 
     ports = spw_node.ports()
 
-    cli.main_runner(parser, args, spw_node, name="nmigen_spacewire_node", ports=ports)
+    cli.main_runner(parser, args, spw_node, name="amaranth_spacewire_node", ports=ports)
 
 
 if __name__ == "__main__":

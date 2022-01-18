@@ -1,5 +1,5 @@
-from nmigen import *
-from nmigen.sim import Simulator
+from amaranth import *
+from amaranth.sim import Simulator
 from .spw_delay import SpWDelay
 from .spw_sim_utils import *
 

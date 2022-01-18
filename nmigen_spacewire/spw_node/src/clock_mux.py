@@ -1,5 +1,5 @@
-from nmigen import *
-from nmigen.sim import Simulator
+from amaranth import *
+from amaranth.sim import Simulator
 from .clock_divider import ClockDivider
 
 #https://vlsitutorials.com/glitch-free-clock-mux/

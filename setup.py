@@ -5,8 +5,8 @@ from setuptools import find_packages
 
 
 setup(
-    name="nmigen-spacewire",
-    description="SpaceWire Node written in nMigen",
+    name="amaranth-spacewire",
+    description="SpaceWire Node written in Amaranth",
     author="Andrés MANELLI",
     author_email="am@toroid.io",
     url="",

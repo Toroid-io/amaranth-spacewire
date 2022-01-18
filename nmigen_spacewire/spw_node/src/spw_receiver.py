@@ -1,6 +1,6 @@
-from nmigen import *
-from nmigen.sim import Simulator, Delay
-from nmigen.lib.cdc import FFSynchronizer
+from amaranth import *
+from amaranth.sim import Simulator, Delay
+from amaranth.lib.cdc import FFSynchronizer
 from .ds_shift_registers import DSInputControlCharSR, DSInputDataCharSR
 from .ds_decoder import DSDecoder
 from .ds_store_enable import DSStoreEnable

@@ -1,4 +1,4 @@
-from nmigen import *
+from amaranth import *
 from spw_node.src.spw_transmitter import SpWTransmitter, WrongSignallingRate
 
 

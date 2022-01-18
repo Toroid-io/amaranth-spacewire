@@ -1,6 +1,6 @@
-from nmigen import *
-from nmigen.utils import bits_for
-from nmigen.sim import Simulator, Delay
+from amaranth import *
+from amaranth.utils import bits_for
+from amaranth.sim import Simulator, Delay
 
 
 class DSEncoder(Elaboratable):

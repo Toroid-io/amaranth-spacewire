@@ -1,4 +1,4 @@
-from nmigen.sim import Delay, Settle
+from amaranth.sim import Delay, Settle
 from bitarray import bitarray
 from bitarray.util import int2ba
 import math

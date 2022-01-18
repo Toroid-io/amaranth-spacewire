@@ -1,4 +1,4 @@
-from nmigen import *
+from amaranth import *
 from ds_fsm import DS_FSM
 
 class DS_FSM_TB(Elaboratable):

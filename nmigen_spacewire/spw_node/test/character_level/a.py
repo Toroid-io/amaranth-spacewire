@@ -1,5 +1,5 @@
-from nmigen import *
-from nmigen.sim import Simulator, Delay, Settle
+from amaranth import *
+from amaranth.sim import Simulator, Delay, Settle
 from spw_node.src.spw_node import SpWNode
 from spw_node.src.spw_transmitter import SpWTransmitterStates
 from spw_node.test.spw_test_utils import *
