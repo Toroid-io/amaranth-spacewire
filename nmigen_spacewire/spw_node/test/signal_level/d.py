@@ -55,6 +55,8 @@ def test_6_6_3():
     def test_null_detected_in_node():
         while (yield node.link_state != SpWNodeFSMStates.ERROR_WAIT):
             yield
+        while not (yield node.s_input):
+            yield
         yield from validate_multiple_symbol_received(SRCFREQ, BIT_TIME_RX, node.o_debug_rx_got_null, 3)
 
     # As we are sending NULLs from the beginning, there will be 1 NULL then 7 FCTs then NULLs
