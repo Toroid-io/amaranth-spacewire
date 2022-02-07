@@ -16,14 +16,13 @@ def test_7_3_d():
     m = Module()
     m.submodules.dut = dut = SpWNode(srcfreq=SRCFREQ, txfreq=TX_FREQ, disconnect_delay=1, debug=True, time_master=True)
     m.d.comb += [
-        dut.i_link_disabled.eq(0),
-        dut.i_link_start.eq(1),
-        dut.i_autostart.eq(1),
-        dut.i_r_en.eq(0),
-        dut.i_reset.eq(0),
-        dut.i_w_en.eq(0),
-        dut.i_reset.eq(0),
-        dut.i_tick.eq(tick)
+        dut.link_disabled.eq(0),
+        dut.link_start.eq(1),
+        dut.autostart.eq(1),
+        dut.r_en.eq(0),
+        dut.soft_reset.eq(0),
+        dut.w_en.eq(0),
+        dut.tick_input.eq(tick)
     ]
 
     def send_nulls():

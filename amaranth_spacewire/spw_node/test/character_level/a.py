@@ -17,28 +17,27 @@ def test_7_3_b():
     sim.add_clock(1/SRCFREQ)
 
     def init():
-        yield dut.i_link_disabled.eq(0)
-        yield dut.i_link_start.eq(1)
-        yield dut.i_autostart.eq(1)
-        yield dut.i_r_en.eq(0)
-        yield dut.i_reset.eq(0)
-        yield dut.i_tick.eq(0)
-        yield dut.i_w_en.eq(0)
-        yield dut.i_reset.eq(0)
+        yield dut.link_disabled.eq(0)
+        yield dut.link_start.eq(1)
+        yield dut.autostart.eq(1)
+        yield dut.r_en.eq(0)
+        yield dut.soft_reset.eq(0)
+        yield dut.tick_input.eq(0)
+        yield dut.w_en.eq(0)
         yield Settle()
 
     def send_nulls():
         yield Delay(SIMSTART)
         for _ in range(5):
-            yield from ds_sim_send_null(dut.i_d, dut.i_s, BIT_TIME)
-        yield from ds_sim_send_fct(dut.i_d, dut.i_s, BIT_TIME)
+            yield from ds_sim_send_null(dut.d_input, dut.s_input, BIT_TIME)
+        yield from ds_sim_send_fct(dut.d_input, dut.s_input, BIT_TIME)
         for _ in range(50):
-            yield from ds_sim_send_null(dut.i_d, dut.i_s, BIT_TIME)
+            yield from ds_sim_send_null(dut.d_input, dut.s_input, BIT_TIME)
 
     def monitor_send_null():
         yield Delay(SIMSTART)
         for _ in range(ds_sim_period_to_ticks(200e-6, SRCFREQ)):
-            if ( (yield dut.debug_tr.link_state == SpWTransmitterStates.WAIT) &
+            if ( (yield dut.debug_tr.o_debug_fsm_state == SpWTransmitterStates.WAIT) &
                  (yield dut.debug_tr.o_ready) &
                  ~ (yield dut.debug_tr.i_send_char) &
                  ~ (yield dut.debug_tr.i_send_eep) &
@@ -46,9 +45,9 @@ def test_7_3_b():
                  ~ (yield dut.debug_tr.i_send_esc) &
                  ~ (yield dut.debug_tr.i_send_fct) &
                  ~ (yield dut.debug_tr.i_send_time)):
-                while(yield dut.debug_tr.link_state == SpWTransmitterStates.WAIT):
+                while(yield dut.debug_tr.o_debug_fsm_state == SpWTransmitterStates.WAIT):
                     yield Delay(BIT_TIME/4)
-                assert(yield dut.debug_tr.link_state == SpWTransmitterStates.SEND_NULL_A)
+                assert(yield dut.debug_tr.o_debug_fsm_state == SpWTransmitterStates.SEND_NULL_A)
             else:
                 yield
 
