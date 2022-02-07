@@ -12,9 +12,9 @@ class DSDecoder(Elaboratable):
     Attributes
     ----------
     i_d : Signal(1), in
-        Data signal from the Data/Strobe pair
+        Data signal from the Data/Strobe pair.
     i_s : Signal(1), in
-        Strobe signal from the Data/Strobe pair
+        Strobe signal from the Data/Strobe pair.
     o_d : Signal(1), out
         Data signal from the output Data/Clock pair. The changes of this signal are in
         sync with the DDR change in ``o_clk_ddr``.
