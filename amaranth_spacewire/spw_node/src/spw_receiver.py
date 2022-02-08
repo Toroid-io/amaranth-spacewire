@@ -9,6 +9,48 @@ from .spw_sim_utils import *
 
 
 class SpWReceiver(Elaboratable):
+    """A SpaceWire receiver.
+
+    Parameters
+    ----------
+    srcfreq : int
+        The main core frequency in Hz.
+    disconnect_delay : int
+        The link disconnect delay in seconds.
+
+    Attributes
+    ----------
+    i_d : Signal(1), in
+        Data signal from the Data/Strobe pair.
+    i_s : Signal(1), in
+        Strobe signal from the Data/Strobe pair.
+    i_reset : Signal(1), in
+        Reset signal.
+    o_got_fct : Signal(1), out
+        Indication that a Flow Control Token character was received.
+    o_got_eep : Signal(1), out
+        Indication that an Error End of Packet character was received.
+    o_got_eop : Signal(1), out
+        Indication that an End Of Packet character was received.
+    o_got_esc : Signal(1), out
+        Indication that an Escape character was received.
+    o_got_null : Signal(1), out
+        Indication that a Null character was received.
+    o_got_timecode : Signal(1), out
+        Indication that a Timecode was received.
+    o_got_data : Signal(1), out
+        Indication that a Data character was received.
+    o_data_char : Signal(8), out
+        The received data character. Only valid if ``o_got_data`` is asserted.
+    o_parity_error : Signal(1), out
+        Indication that a Parity Error was detected.
+    o_read_error : Signal(1), out
+        Indication that a Read Error was detected.
+    o_escape_error : Signal(1), out
+        Indication that an Escape Error was detected.
+    o_disconnect_error : Signal(1), out
+        Indication that a Disconnect Error was detected.
+    """
     def __init__(self, srcfreq, disconnect_delay=850e-9):
         self.i_d = Signal()
         self.i_s = Signal()

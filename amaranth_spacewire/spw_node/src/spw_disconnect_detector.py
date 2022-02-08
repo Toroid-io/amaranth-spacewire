@@ -13,9 +13,9 @@ class SpWDisconnectDetector(Elaboratable):
     Parameters:
     ----------
     srcfreq : int
-        The main core frequency.
+        The main core frequency in Hz.
     disconnect_delay : int
-        The disconnect delay.
+        The disconnect delay in seconds.
 
     Attributes
     ----------
