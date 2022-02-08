@@ -272,9 +272,8 @@ class DSInputDataCharSR(DSInputCharSR):
     def elaborate(self, platform):
         m = super().elaborate(platform)
 
-        with m.Switch(self.o_char):
-            with m.Case(DS_CHAR_DATA_MATCHER):
-                m.d.comb += self.o_detected.eq(1)
+        with m.If(self.o_char.matches(DS_CHAR_DATA_MATCHER)):
+            m.d.comb += self.o_detected.eq(1)
 
         return m
 
