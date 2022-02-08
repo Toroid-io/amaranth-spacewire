@@ -5,6 +5,28 @@ from .spw_sim_utils import *
 
 
 class SpWDisconnectDetector(Elaboratable):
+    """Watch out for link disconnections.
+
+    Update a SpaceWire delay countdown every time a new bit is received, so that
+    we can detect a link disconnect.
+
+    Parameters:
+    ----------
+    srcfreq : int
+        The main core frequency.
+    disconnect_delay : int
+        The disconnect delay.
+
+    Attributes
+    ----------
+    i_reset : Signal(1), in
+        Reset signal.
+    i_store_en : Signal(1), in
+        Indication that a bit was received.
+    o_disconnected : Signal(1), out
+        Indication that the ``disconnect_delay`` has elapsed without
+        ``i_store_en`` being asserted.
+    """
     def __init__(self, srcfreq, disconnect_delay=850e-9):
         self.i_reset = Signal()
         self.i_store_en = Signal()
