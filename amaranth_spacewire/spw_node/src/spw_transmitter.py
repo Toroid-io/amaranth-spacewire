@@ -250,8 +250,8 @@ class SpWTransmitter(Elaboratable):
 
         m.d.comb += [
             tr_clk_mux.i_sel.eq(self.i_switch_to_user_tx_freq),
-            tr_clk_mux.i_clka.eq(tr_clk_reset.o),
-            tr_clk_mux.i_clkb.eq(tr_clk_user.o),
+            tr_clk_mux.i_clk_a.eq(tr_clk_reset.o),
+            tr_clk_mux.i_clk_b.eq(tr_clk_user.o),
             ClockSignal("tx").eq(tr_clk_mux.o_clk)
         ]
 
