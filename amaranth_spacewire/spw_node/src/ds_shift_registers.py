@@ -173,7 +173,7 @@ class DSInputCharSR(Elaboratable):
         m = Module()
         size = self.o_char.shape().width
 
-        parities = Signal(self._size)
+        parities = Signal(self._size - 3)
 
         # Bits 0 and 1 are not used to compute parity (parity itself and
         # data/control bit)
