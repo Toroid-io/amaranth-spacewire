@@ -1,21 +1,17 @@
+import math
+import os
+import inspect
+
 from amaranth.sim import Delay, Settle
 from bitarray import bitarray
 from bitarray.util import int2ba
-import math
-import sys, os, inspect
 from pathlib import Path
 
+# TODO: Please document these
 LATENCY_FF_SYNCHRONIZER = 2
 LATENCY_BIT_START_TO_STORE_EN = LATENCY_FF_SYNCHRONIZER + 3
 LATENCY_BIT_START_TO_SR_UPDATED = LATENCY_BIT_START_TO_STORE_EN + 1
 LATENCY_BIT_START_TO_SYMBOL_DETECTED = LATENCY_BIT_START_TO_SR_UPDATED + 1
-
-def add_module_to_path():
-    frame = inspect.stack()[1]
-    module = inspect.getmodule(frame[0])
-    currentdir = os.path.dirname(os.path.abspath(inspect.getfile(module)))
-    parentdir = os.path.dirname(currentdir)
-    sys.path.insert(0, parentdir)
 
 def get_gtkw_filename(test_suffix=None):
     return _get_test_output_filename('gtkw', test_suffix)
@@ -42,6 +38,17 @@ def _get_test_output_filename(extension='vcd', test_suffix=None):
     filename = '_'.join([filename, test_suffix]) + extension if test_suffix else filename + extension
 
     return filename
+
+def create_sim_output_dirs(vcd_dir, gtkw_dir):
+    try:
+        os.makedirs(os.path.dirname(vcd_dir))
+    except FileExistsError:
+        pass
+
+    try:
+        os.makedirs(os.path.dirname(gtkw_dir))
+    except FileExistsError:
+        pass
 
 global prev_d
 global prev_s

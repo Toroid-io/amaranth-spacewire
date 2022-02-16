@@ -20,15 +20,15 @@ class WrongSourceFrequency(Exception):
 
 
 class SpWTransmitterStates(enum.Enum):
-    WAIT = 0
-    SEND_NULL_A = 1
-    SEND_NULL_B = 2
-    SEND_NULL_C = 3
-    WAIT_TX_START_CONTROL = 4
-    WAIT_TX_START_DATA = 5
-    SEND_TIME_A = 6
-    SEND_TIME_B = 7
-    SEND_TIME_C = 8
+    WAIT                    = 0
+    WAIT_TX_START_DATA      = 1
+    WAIT_TX_START_CONTROL   = 2
+    SEND_TIME_A             = 3
+    SEND_NULL_A             = 4
+    SEND_NULL_B             = 5
+    SEND_NULL_C             = 6
+    SEND_TIME_B             = 7
+    SEND_TIME_C             = 8
 
 
 class SpWTransmitter(Elaboratable):
@@ -57,17 +57,14 @@ class SpWTransmitter(Elaboratable):
             self.o_debug_encoder_reset_feedback = Signal()
             self.o_debug_mux_clk = Signal()
             self.o_debug_mux_sel = Signal()
-            self.o_debug_fsm_state = Signal()
+            self.o_debug_fsm_state = Signal(SpWTransmitterStates)
             self.o_debug_sr_input = Signal(8)
 
         if txfreq < SpWTransmitter.MIN_TX_FREQ_USER:
-            self._MustUse__silence = True
             raise WrongSignallingRate("Signalling rate must be at least 2 Mb/s (provided {0} Mb/s)".format(txfreq/1e6))
         elif srcfreq < 2 * SpWTransmitter.TX_FREQ_RESET:
-            self._MustUse__silence = True
             raise WrongSourceFrequency("The source frequency must be at least 2 times the reset transmit frequency. Expected > {0}, given {1}".format(2 * SpWTransmitter.TX_FREQ_RESET, srcfreq))
         elif srcfreq < 2 * txfreq:
-            self._MustUse__silence = True
             raise WrongSourceFrequency("The source frequency must be at least 2 times the transmit frequency. Expected > {0}, given {1}".format(2 * txfreq, srcfreq))
 
     def elaborate(self, platform):
@@ -90,7 +87,6 @@ class SpWTransmitter(Elaboratable):
         # One tx clock delay to hold d/s signals at reset
         encoder_reset = Signal(reset=1)
         encoder_reset_feedback = Signal()
-        send_null = Signal()
         timecode_to_send = Signal(8)
 
         m.d.comb += [
@@ -111,44 +107,44 @@ class SpWTransmitter(Elaboratable):
         with m.FSM() as tr_fsm:
             with m.State(SpWTransmitterStates.WAIT):
                 with m.If(~self.i_reset & self.o_ready):
-                    with m.If(self.i_send_char == 1):
+                    with m.If(self.i_send_char):
                         m.d.sync += [
                             sr.i_send_data.eq(1),
                             sr.i_input.eq(self.i_char)
                         ]
                         m.next = SpWTransmitterStates.WAIT_TX_START_DATA
-                    with m.Elif(self.i_send_esc == 1):
+                    with m.Elif(self.i_send_esc):
                         m.d.sync += [
                             sr.i_send_control.eq(1),
                             sr.i_input.eq(char_esc)
                         ]
                         m.next = SpWTransmitterStates.WAIT_TX_START_CONTROL
-                    with m.Elif(self.i_send_fct == 1):
+                    with m.Elif(self.i_send_fct):
                         m.d.sync += [
                             sr.i_send_control.eq(1),
                             sr.i_input.eq(char_fct)
                         ]
                         m.next = SpWTransmitterStates.WAIT_TX_START_CONTROL
-                    with m.Elif(self.i_send_eop == 1):
+                    with m.Elif(self.i_send_eop):
                         m.d.sync += [
                             sr.i_send_control.eq(1),
                             sr.i_input.eq(char_eop)
                         ]
                         m.next = SpWTransmitterStates.WAIT_TX_START_CONTROL
-                    with m.Elif(self.i_send_eep == 1):
+                    with m.Elif(self.i_send_eep):
                         m.d.sync += [
                             sr.i_send_control.eq(1),
                             sr.i_input.eq(char_eep)
                         ]
                         m.next = SpWTransmitterStates.WAIT_TX_START_CONTROL
-                    with m.Elif(self.i_send_time == 1):
+                    with m.Elif(self.i_send_time):
                         m.d.sync += [
                             sr.i_send_control.eq(1),
                             sr.i_input.eq(char_esc),
                             timecode_to_send.eq(self.i_char)
                         ]
                         m.next = SpWTransmitterStates.SEND_TIME_A
-                    with m.Elif(send_null == 1):
+                    with m.Else():
                         m.d.sync += [
                             sr.i_send_control.eq(1),
                             sr.i_input.eq(char_esc)
@@ -246,7 +242,6 @@ class SpWTransmitter(Elaboratable):
                     m.next = SpWTransmitterStates.WAIT
 
             m.d.comb += self.o_ready.eq(tr_fsm.ongoing(SpWTransmitterStates.WAIT) & sr.o_ready & encoder.o_ready & ~encoder_reset)
-            m.d.sync += send_null.eq(~self.i_send_char & ~self.i_send_eep & ~self.i_send_eop & ~self.i_send_esc & ~self.i_send_fct)
 
         m.d.comb += [
             tr_clk_mux.i_sel.eq(self.i_switch_to_user_tx_freq),
