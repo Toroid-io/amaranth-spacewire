@@ -21,7 +21,7 @@ class SpWNodeFSMStates(enum.Enum):
 
 
 class SpWNode(Elaboratable):
-    def __init__(self, srcfreq, txfreq, transission_delay=12.8e-6, disconnect_delay=850e-9, time_master=True, debug=False):
+    def __init__(self, srcfreq, txfreq, transission_delay=12.8e-6, disconnect_delay=850e-9, time_master=True, rx_tokens=7, tx_tokens=7, debug=False):
         # Data/Strobe
         self.d_input = Signal()
         self.s_input = Signal()
@@ -60,6 +60,8 @@ class SpWNode(Elaboratable):
         self._transission_delay = transission_delay
         self._disconnect_delay = disconnect_delay
         self._time_master = Const(1 if time_master else 0)
+        self._rx_tokens = rx_tokens
+        self._tx_tokens = tx_tokens
 
         self._debug = debug
         if debug:
@@ -81,9 +83,9 @@ class SpWNode(Elaboratable):
         use_user_tx_freq = Signal()
         tr_pre_send = Signal()
         rx_error = Signal()
-        rx_tokens_count = Signal(range(7 + 1), reset=7)
+        rx_tokens_count = Signal(range(self._rx_tokens + 1), reset=self._rx_tokens)
         rx_read_counter = Signal(range(8))
-        tx_credit = Signal(range(56 + 1))
+        tx_credit = Signal(range(8 * self._tx_tokens + 1))
         tx_credit_error = Signal()
         read_in_progress = Signal()
         gotNULL = Signal()
@@ -102,8 +104,8 @@ class SpWNode(Elaboratable):
             tr.i_switch_to_user_tx_freq.eq(use_user_tx_freq)
         ]
 
-        m.submodules.rx_fifo = rx_fifo = SyncFIFOBuffered(width=8, depth=56)
-        m.submodules.tx_fifo = tx_fifo = SyncFIFOBuffered(width=8, depth=56)
+        m.submodules.rx_fifo = rx_fifo = SyncFIFOBuffered(width=8, depth=8 * self._rx_tokens)
+        m.submodules.tx_fifo = tx_fifo = SyncFIFOBuffered(width=8, depth=8 * self._tx_tokens)
 
         m.d.comb += [
             rx_fifo.r_en.eq(self.r_en),
@@ -123,7 +125,7 @@ class SpWNode(Elaboratable):
                 m.d.comb += rx.i_reset.eq(1)
                 m.d.comb += tr.i_reset.eq(1)
                 m.d.sync += [
-                    rx_tokens_count.eq(7),
+                    rx_tokens_count.eq(self._rx_tokens),
                     rx_read_counter.eq(0),
                     tx_credit.eq(0),
                     tx_credit_error.eq(0),
@@ -224,7 +226,7 @@ class SpWNode(Elaboratable):
         with m.If(main_fsm.ongoing(SpWNodeFSMStates.CONNECTING) | main_fsm.ongoing(SpWNodeFSMStates.RUN)):
             with m.If(tr.i_send_char & ~rx.o_got_fct):
                 m.d.sync += tx_credit.eq(tx_credit - 1)
-            with m.Elif(rx.o_got_fct & (tx_credit > (56 - 8))):
+            with m.Elif(rx.o_got_fct & (tx_credit > (8 * self._tx_tokens - 8))):
                 m.d.sync += tx_credit_error.eq(1)
             with m.Elif(rx.o_got_fct & ~tr.i_send_char):
                 m.d.sync += tx_credit.eq(tx_credit + 8)

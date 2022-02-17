@@ -19,11 +19,19 @@ def main():
             type=int, default=10,
             help="Link frequency [MHz]")
 
+    parser.add_argument("--rx-tokens",
+            type=int, default=7,
+            help="Number of RX tokens (fifo size / 8)")
+
+    parser.add_argument("--tx-tokens",
+            type=int, default=7,
+            help="Number of TX tokens (fifo size / 8)")
+
     cli.main_parser(parser)
 
     args = parser.parse_args()
 
-    spw_node = SpWNode(args.src_freq * 1e6, args.link_freq * 1e6, time_master=args.time_master, debug=False)
+    spw_node = SpWNode(args.src_freq * 1e6, args.link_freq * 1e6, time_master=args.time_master, rx_tokens=args.rx_tokens, tx_tokens=args.tx_tokens, debug=False)
 
     ports = spw_node.ports()
 
