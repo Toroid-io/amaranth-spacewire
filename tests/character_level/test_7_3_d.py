@@ -5,7 +5,7 @@ from amaranth import *
 from amaranth.sim import Simulator, Delay, Settle
 
 from amaranth_spacewire import SpWNode, SpWTransmitterStates, SpWNodeFSMStates
-from spw_test_utils import *
+from amaranth_spacewire.spw_test_utils import *
 
 SRCFREQ = 30e6
 SIMSTART = 20e-6

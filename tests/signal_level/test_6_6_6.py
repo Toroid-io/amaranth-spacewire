@@ -4,7 +4,7 @@ from amaranth import *
 from amaranth.sim import Simulator, Delay, Settle
 
 from amaranth_spacewire import SpWNode, SpWNodeFSMStates, SpWTransmitter, SpWReceiver
-from spw_test_utils import *
+from amaranth_spacewire.spw_test_utils import *
 
 SRCFREQ = 20e6
 BIT_TIME_TX_RESET = 1 / SpWTransmitter.TX_FREQ_RESET

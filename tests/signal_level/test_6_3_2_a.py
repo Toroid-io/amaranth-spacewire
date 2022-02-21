@@ -3,7 +3,7 @@ import unittest
 from amaranth import *
 from amaranth.sim import Simulator, Delay, Settle
 from amaranth_spacewire import SpWNode, SpWNodeFSMStates
-from spw_test_utils import *
+from amaranth_spacewire.spw_test_utils import *
 
 SRCFREQ = 20e6
 SIMSTART = 20e-6
@@ -74,8 +74,8 @@ class test632a(unittest.TestCase):
     def test_spec_6_3_2_a(self):
         self.sim.add_process(self.init)
         self.sim.add_process(self.ds_input)
-        self.sim.add_sync_process(self._test_nulls)
-        self.sim.add_sync_process(self._test_null_after_simultaneous)
+        self.sim.add_process(self._test_nulls)
+        self.sim.add_process(self._test_null_after_simultaneous)
 
         vcd = get_vcd_filename()
         gtkw = get_gtkw_filename()

@@ -2,7 +2,7 @@ import math
 import os
 import inspect
 
-from amaranth.sim import Delay, Settle
+from amaranth.sim import Delay, Settle, Tick
 from bitarray import bitarray
 from bitarray.util import int2ba
 from pathlib import Path
@@ -128,6 +128,33 @@ def ds_sim_send_fct(i_d, i_s, bit_time=0.5e-6):
     yield from ds_sim_send_d(i_d, i_s, 0, bit_time)
     yield from ds_sim_send_d(i_d, i_s, 0, bit_time)
 
+def ds_sim_send_esc(i_d, i_s, bit_time=0.5e-6):
+    global prev_parity
+    parity = not (prev_parity ^ True)
+    prev_parity = False
+    yield from ds_sim_send_d(i_d, i_s, parity, bit_time)
+    yield from ds_sim_send_d(i_d, i_s, 1, bit_time)
+    yield from ds_sim_send_d(i_d, i_s, 1, bit_time)
+    yield from ds_sim_send_d(i_d, i_s, 1, bit_time)
+
+def ds_sim_send_eop(i_d, i_s, bit_time=0.5e-6):
+    global prev_parity
+    parity = not (prev_parity ^ True)
+    prev_parity = False
+    yield from ds_sim_send_d(i_d, i_s, parity, bit_time)
+    yield from ds_sim_send_d(i_d, i_s, 1, bit_time)
+    yield from ds_sim_send_d(i_d, i_s, 0, bit_time)
+    yield from ds_sim_send_d(i_d, i_s, 1, bit_time)
+
+def ds_sim_send_eep(i_d, i_s, bit_time=0.5e-6):
+    global prev_parity
+    parity = not (prev_parity ^ True)
+    prev_parity = False
+    yield from ds_sim_send_d(i_d, i_s, parity, bit_time)
+    yield from ds_sim_send_d(i_d, i_s, 1, bit_time)
+    yield from ds_sim_send_d(i_d, i_s, 1, bit_time)
+    yield from ds_sim_send_d(i_d, i_s, 0, bit_time)
+
 def ds_sim_send_timecode(i_d, i_s, code):
     global prev_parity
     parity = not (prev_parity ^ True)
@@ -155,16 +182,28 @@ def ds_sim_send_wrong_null(i_d, i_s, bit_time=0.5e-6):
 
 def validate_symbol_received(src_freq, bit_time, s):
     # Wait for parity bit to arrive
+    # Parity is in the next symbol's first two bytes and includes symbol type,
+    # so wait for two bit times
+    waited = LATENCY_BIT_START_TO_SYMBOL_DETECTED
     yield Delay(bit_time * 2)
     for _ in range(LATENCY_BIT_START_TO_SYMBOL_DETECTED):
-        yield
+        yield Tick()
     yield Settle()
-    assert (yield s)
-    # TODO: Why - 1 here ?
-    return bit_time * 2 + (LATENCY_BIT_START_TO_SYMBOL_DETECTED - 1) * (1/src_freq)
+
+    # We could be one Tick off in the detection chain, so test one more time
+    if ((yield s) == 0):
+        waited = waited + 1
+        yield Tick()
+        yield Settle()
+
+    return bit_time * 2 + (waited - 1) * (1/src_freq)
 
 def validate_multiple_symbol_received(src_freq, bit_time, s, num):
+    total_waited = 0
     waited = 0
     for _ in range(num):
         yield Delay(2 * 4 * bit_time - waited)
         waited = yield from validate_symbol_received(src_freq, bit_time, s)
+        total_waited = total_waited + waited
+
+    return total_waited

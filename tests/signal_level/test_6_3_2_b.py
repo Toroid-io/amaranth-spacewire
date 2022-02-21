@@ -5,7 +5,7 @@ import logging
 from amaranth import *
 from amaranth.sim import Simulator, Delay, Settle
 from amaranth_spacewire import SpWTransmitter
-from spw_test_utils import *
+from amaranth_spacewire.spw_test_utils import *
 
 SRCFREQ = 20e6
 # Use reset frequency to avoid managing two frequencies

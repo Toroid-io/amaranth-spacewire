@@ -4,9 +4,9 @@ from amaranth import *
 from amaranth.sim import Simulator, Delay
 
 from amaranth_spacewire import SpWNode, SpWNodeFSMStates, SpWReceiver
-from spw_test_utils import *
+from amaranth_spacewire.spw_test_utils import *
 
-SRCFREQ = 20e6
+SRCFREQ = 35e6
 BIT_FREQ_RX = 5e6
 BIT_TIME_RX = 1 / BIT_FREQ_RX
 CHAR_TIME_RX = 4 * BIT_TIME_RX
@@ -45,7 +45,7 @@ class test663(unittest.TestCase):
     def send_nulls(self):
         sent_fct = False
         while (yield self.node.link_state != SpWNodeFSMStates.ERROR_WAIT):
-            yield
+            yield Tick()
         for _ in range(50):
             if not sent_fct and (yield self.node.link_state == SpWNodeFSMStates.CONNECTING):
                 yield from ds_sim_send_fct(self.node.d_input, self.node.s_input, 1/BIT_FREQ_RX)
@@ -54,25 +54,22 @@ class test663(unittest.TestCase):
                 yield from ds_sim_send_null(self.node.d_input, self.node.s_input, 1/BIT_FREQ_RX)
 
     def _test_null_detected_in_node(self):
-        while (yield self.node.link_state != SpWNodeFSMStates.ERROR_WAIT):
-            yield
         while not (yield self.node.s_input):
-            yield
+            yield Tick()
         yield from validate_multiple_symbol_received(SRCFREQ, BIT_TIME_RX, self.node.o_debug_rx_got_null, 3)
 
     # As we are sending NULLs from the beginning, there will be 1 NULL then 7 FCTs then NULLs
     def _test_null_detected_in_rx(self):
         while not (yield self.node.s_output):
-            yield
-        yield Delay(2 * CHAR_TIME_TX)
-        waited = yield from validate_symbol_received(SRCFREQ, BIT_TIME_TX, self.rx.o_got_null)
+            yield Tick()
+        waited = yield from validate_multiple_symbol_received(SRCFREQ, BIT_TIME_TX, self.rx.o_got_null, 1)
         yield Delay(7 * CHAR_TIME_TX - waited)
         yield from validate_multiple_symbol_received(SRCFREQ, BIT_TIME_TX, self.rx.o_got_null, 10)
 
-    def test_spec_6_3_3(self):
-        self.sim.add_sync_process(self.send_nulls)
-        self.sim.add_sync_process(self._test_null_detected_in_node)
-        self.sim.add_sync_process(self._test_null_detected_in_rx)
+    def test_spec_6_6_3(self):
+        self.sim.add_process(self.send_nulls)
+        self.sim.add_process(self._test_null_detected_in_node)
+        self.sim.add_process(self._test_null_detected_in_rx)
 
         vcd = get_vcd_filename()
         gtkw = get_gtkw_filename()
