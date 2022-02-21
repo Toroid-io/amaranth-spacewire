@@ -12,7 +12,7 @@ BIT_TIME_RX = 1 / BIT_FREQ_RX
 CHAR_TIME_RX = 4 * BIT_TIME_RX
 # Use reset frequency to avoid managing two frequencies
 BIT_FREQ_TX = 10e6
-BIT_TIME_TX = 1 / BIT_FREQ_TX
+BIT_TIME_TX = ds_round_bit_time(BIT_FREQ_TX, SRCFREQ)
 CHAR_TIME_TX = 4 * BIT_TIME_TX
 
 class test663(unittest.TestCase):
@@ -48,10 +48,10 @@ class test663(unittest.TestCase):
             yield Tick()
         for _ in range(50):
             if not sent_fct and (yield self.node.link_state == SpWNodeFSMStates.CONNECTING):
-                yield from ds_sim_send_fct(self.node.d_input, self.node.s_input, 1/BIT_FREQ_RX)
+                yield from ds_sim_send_fct(self.node.d_input, self.node.s_input, SRCFREQ, BIT_TIME_RX)
                 sent_fct = True
             else:
-                yield from ds_sim_send_null(self.node.d_input, self.node.s_input, 1/BIT_FREQ_RX)
+                yield from ds_sim_send_null(self.node.d_input, self.node.s_input, SRCFREQ, BIT_TIME_RX)
 
     def _test_null_detected_in_node(self):
         while not (yield self.node.s_input):
@@ -63,7 +63,7 @@ class test663(unittest.TestCase):
         while not (yield self.node.s_output):
             yield Tick()
         waited = yield from validate_multiple_symbol_received(SRCFREQ, BIT_TIME_TX, self.rx.o_got_null, 1)
-        yield Delay(7 * CHAR_TIME_TX - waited)
+        yield from ds_sim_delay(7 * CHAR_TIME_TX - waited, SRCFREQ)
         yield from validate_multiple_symbol_received(SRCFREQ, BIT_TIME_TX, self.rx.o_got_null, 10)
 
     def test_spec_6_6_3(self):

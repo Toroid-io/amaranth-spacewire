@@ -1,7 +1,7 @@
 import unittest
 
 from amaranth import *
-from amaranth.sim import Simulator, Delay, Settle
+from amaranth.sim import Simulator, Settle
 
 from amaranth_spacewire import SpWNode, SpWNodeFSMStates, SpWTransmitter, SpWReceiver
 from amaranth_spacewire.spw_test_utils import *
@@ -35,33 +35,35 @@ class test_6_6_6(unittest.TestCase):
     def send_nulls(self):
         sent_fct = False
         while (yield self.node.link_state != SpWNodeFSMStates.ERROR_WAIT):
-            yield
+            yield Tick()
         for _ in range(100):
             if not sent_fct and (yield self.node.link_state == SpWNodeFSMStates.CONNECTING):
-                yield from ds_sim_send_fct(self.node.d_input, self.node.s_input, BIT_TIME_TX_RESET)
+                yield from ds_sim_send_fct(self.node.d_input, self.node.s_input, SRCFREQ, BIT_TIME_TX_RESET)
                 sent_fct = True
             else:
-                yield from ds_sim_send_null(self.node.d_input, self.node.s_input, BIT_TIME_TX_RESET)
-        yield from ds_sim_send_wrong_null(self.node.d_input, self.node.s_input, BIT_TIME_TX_RESET)
+                yield from ds_sim_send_null(self.node.d_input, self.node.s_input, SRCFREQ, BIT_TIME_TX_RESET)
+        yield from ds_sim_send_wrong_null(self.node.d_input, self.node.s_input, SRCFREQ, BIT_TIME_TX_RESET)
         for _ in range(50):
-            yield from ds_sim_send_null(self.node.d_input, self.node.s_input, BIT_TIME_TX_RESET)
+            yield from ds_sim_send_null(self.node.d_input, self.node.s_input, SRCFREQ, BIT_TIME_TX_RESET)
 
     def _test(self):
         yield self.i_switch_to_user_tx_freq.eq(1)
+        yield Tick()
         while ((yield self.node.link_state != SpWNodeFSMStates.RUN) and not (yield self.node.debug_tr.o_ready)):
-            yield
+            yield Tick()
             yield Settle()
             assert(yield self.node.debug_tr.i_switch_to_user_tx_freq == 0)
         while (yield self.node.link_state == SpWNodeFSMStates.RUN):
+            yield Tick()
             yield Settle()
             assert(yield self.node.debug_tr.i_switch_to_user_tx_freq == 1)
-        yield
+        yield Tick()
         yield Settle()
         assert(yield self.node.debug_tr.i_switch_to_user_tx_freq == 0)
 
     def test_spec_6_6_6(self):
-        self.sim.add_sync_process(self.send_nulls)
-        self.sim.add_sync_process(self._test)
+        self.sim.add_process(self.send_nulls)
+        self.sim.add_process(self._test)
 
         vcd = get_vcd_filename()
         gtkw = get_gtkw_filename()

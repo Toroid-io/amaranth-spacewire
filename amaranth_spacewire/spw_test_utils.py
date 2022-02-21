@@ -65,7 +65,14 @@ def ds_sim_char_to_bits(c):
 def ds_sim_period_to_ticks(p, srcfreq):
     return math.floor(p * srcfreq)
 
-def ds_sim_send_d(i_d, i_s, d, bit_time=0.5e-6):
+def ds_sim_delay(p, srcfreq):
+    for _ in range(ds_sim_period_to_ticks(p, srcfreq)):
+        yield Tick()
+
+def ds_round_bit_time(bit_freq_in, src_freq):
+    return ds_sim_period_to_ticks(1/bit_freq_in, src_freq) / src_freq
+
+def ds_sim_send_d(i_d, i_s, d, src_freq, bit_time):
     global prev_d
     global prev_s
     yield i_d.eq(d)
@@ -75,9 +82,9 @@ def ds_sim_send_d(i_d, i_s, d, bit_time=0.5e-6):
         prev_s = not prev_s
         yield i_s.eq(prev_s)
     prev_d = d
-    yield Delay(bit_time)
+    yield from ds_sim_delay(bit_time, src_freq)
 
-def ds_sim_send_char(i_d, i_s, b, bit_time=0.5e-6):
+def ds_sim_send_char(i_d, i_s, b, src_freq, bit_time):
     global prev_parity
     data = bitarray(endian='little')
     data.frombytes(b.encode())
@@ -86,12 +93,12 @@ def ds_sim_send_char(i_d, i_s, b, bit_time=0.5e-6):
     for i in range(8):
         next_parity = next_parity ^ data[i]
     prev_parity = next_parity
-    yield from ds_sim_send_d(i_d, i_s, parity, bit_time)
-    yield from ds_sim_send_d(i_d, i_s, 0, bit_time)
+    yield from ds_sim_send_d(i_d, i_s, parity, src_freq, bit_time)
+    yield from ds_sim_send_d(i_d, i_s, 0, src_freq, bit_time)
     for i in range(8):
-        yield from ds_sim_send_d(i_d, i_s, data[i], bit_time)
+        yield from ds_sim_send_d(i_d, i_s, data[i], src_freq, bit_time)
 
-def ds_sim_send_int(i_d, i_s, b):
+def ds_sim_send_int(i_d, i_s, b, src_freq):
     global prev_parity
     data = int2ba(b, length=8, endian='little')
     parity = not (prev_parity ^ False)
@@ -99,110 +106,116 @@ def ds_sim_send_int(i_d, i_s, b):
     for i in range(8):
         next_parity = next_parity ^ data[i]
     prev_parity = next_parity
-    yield from ds_sim_send_d(i_d, i_s, parity)
-    yield from ds_sim_send_d(i_d, i_s, 0)
+    yield from ds_sim_send_d(i_d, i_s, parity, src_freq)
+    yield from ds_sim_send_d(i_d, i_s, 0, src_freq)
     for i in range(8):
-        yield from ds_sim_send_d(i_d, i_s, data[i])
+        yield from ds_sim_send_d(i_d, i_s, data[i], src_freq)
 
-def ds_sim_send_null(i_d, i_s, bit_time=0.5e-6):
+def ds_sim_send_null(i_d, i_s, src_freq, bit_time):
     global prev_parity
     parity = not (prev_parity ^ True)
     prev_parity = False
-    yield from ds_sim_send_d(i_d, i_s, parity, bit_time)
-    yield from ds_sim_send_d(i_d, i_s, 1, bit_time)
-    yield from ds_sim_send_d(i_d, i_s, 1, bit_time)
-    yield from ds_sim_send_d(i_d, i_s, 1, bit_time)
+    yield from ds_sim_send_d(i_d, i_s, parity, src_freq, bit_time)
+    yield from ds_sim_send_d(i_d, i_s, 1, src_freq, bit_time)
+    yield from ds_sim_send_d(i_d, i_s, 1, src_freq, bit_time)
+    yield from ds_sim_send_d(i_d, i_s, 1, src_freq, bit_time)
     parity = not (prev_parity ^ True)
     prev_parity = False
-    yield from ds_sim_send_d(i_d, i_s, parity, bit_time)
-    yield from ds_sim_send_d(i_d, i_s, 1, bit_time)
-    yield from ds_sim_send_d(i_d, i_s, 0, bit_time)
-    yield from ds_sim_send_d(i_d, i_s, 0, bit_time)
+    yield from ds_sim_send_d(i_d, i_s, parity, src_freq, bit_time)
+    yield from ds_sim_send_d(i_d, i_s, 1, src_freq, bit_time)
+    yield from ds_sim_send_d(i_d, i_s, 0, src_freq, bit_time)
+    yield from ds_sim_send_d(i_d, i_s, 0, src_freq, bit_time)
 
-def ds_sim_send_fct(i_d, i_s, bit_time=0.5e-6):
+def ds_sim_send_fct(i_d, i_s, src_freq, bit_time):
     global prev_parity
     parity = not (prev_parity ^ True)
     prev_parity = False
-    yield from ds_sim_send_d(i_d, i_s, parity, bit_time)
-    yield from ds_sim_send_d(i_d, i_s, 1, bit_time)
-    yield from ds_sim_send_d(i_d, i_s, 0, bit_time)
-    yield from ds_sim_send_d(i_d, i_s, 0, bit_time)
+    yield from ds_sim_send_d(i_d, i_s, parity, src_freq, bit_time)
+    yield from ds_sim_send_d(i_d, i_s, 1, src_freq, bit_time)
+    yield from ds_sim_send_d(i_d, i_s, 0, src_freq, bit_time)
+    yield from ds_sim_send_d(i_d, i_s, 0, src_freq, bit_time)
 
-def ds_sim_send_esc(i_d, i_s, bit_time=0.5e-6):
+def ds_sim_send_esc(i_d, i_s, src_freq, bit_time):
     global prev_parity
     parity = not (prev_parity ^ True)
     prev_parity = False
-    yield from ds_sim_send_d(i_d, i_s, parity, bit_time)
-    yield from ds_sim_send_d(i_d, i_s, 1, bit_time)
-    yield from ds_sim_send_d(i_d, i_s, 1, bit_time)
-    yield from ds_sim_send_d(i_d, i_s, 1, bit_time)
+    yield from ds_sim_send_d(i_d, i_s, parity, src_freq, bit_time)
+    yield from ds_sim_send_d(i_d, i_s, 1, src_freq, bit_time)
+    yield from ds_sim_send_d(i_d, i_s, 1, src_freq, bit_time)
+    yield from ds_sim_send_d(i_d, i_s, 1, src_freq, bit_time)
 
-def ds_sim_send_eop(i_d, i_s, bit_time=0.5e-6):
+def ds_sim_send_eop(i_d, i_s, src_freq, bit_time):
+    global prev_parity
+    parity = not (prev_parity ^ True)
+    prev_parity = True
+    yield from ds_sim_send_d(i_d, i_s, parity, src_freq, bit_time)
+    yield from ds_sim_send_d(i_d, i_s, 1, src_freq, bit_time)
+    yield from ds_sim_send_d(i_d, i_s, 0, src_freq, bit_time)
+    yield from ds_sim_send_d(i_d, i_s, 1, src_freq, bit_time)
+
+def ds_sim_send_eep(i_d, i_s, src_freq, bit_time):
+    global prev_parity
+    parity = not (prev_parity ^ True)
+    prev_parity = True
+    yield from ds_sim_send_d(i_d, i_s, parity, src_freq, bit_time)
+    yield from ds_sim_send_d(i_d, i_s, 1, src_freq, bit_time)
+    yield from ds_sim_send_d(i_d, i_s, 1, src_freq, bit_time)
+    yield from ds_sim_send_d(i_d, i_s, 0, src_freq, bit_time)
+
+def ds_sim_send_timecode(i_d, i_s, code, src_freq):
     global prev_parity
     parity = not (prev_parity ^ True)
     prev_parity = False
-    yield from ds_sim_send_d(i_d, i_s, parity, bit_time)
-    yield from ds_sim_send_d(i_d, i_s, 1, bit_time)
-    yield from ds_sim_send_d(i_d, i_s, 0, bit_time)
-    yield from ds_sim_send_d(i_d, i_s, 1, bit_time)
+    yield from ds_sim_send_d(i_d, i_s, parity, src_freq)
+    yield from ds_sim_send_d(i_d, i_s, 1, src_freq)
+    yield from ds_sim_send_d(i_d, i_s, 1, src_freq)
+    yield from ds_sim_send_d(i_d, i_s, 1, src_freq)
+    yield from ds_sim_send_int(i_d, i_s, code, src_freq)
 
-def ds_sim_send_eep(i_d, i_s, bit_time=0.5e-6):
+def ds_sim_send_wrong_null(i_d, i_s, src_freq, bit_time):
     global prev_parity
     parity = not (prev_parity ^ True)
     prev_parity = False
-    yield from ds_sim_send_d(i_d, i_s, parity, bit_time)
-    yield from ds_sim_send_d(i_d, i_s, 1, bit_time)
-    yield from ds_sim_send_d(i_d, i_s, 1, bit_time)
-    yield from ds_sim_send_d(i_d, i_s, 0, bit_time)
-
-def ds_sim_send_timecode(i_d, i_s, code):
-    global prev_parity
+    yield from ds_sim_send_d(i_d, i_s, parity, src_freq, bit_time)
+    yield from ds_sim_send_d(i_d, i_s, 1, src_freq, bit_time)
+    yield from ds_sim_send_d(i_d, i_s, 1, src_freq, bit_time)
+    yield from ds_sim_send_d(i_d, i_s, 1, src_freq, bit_time)
     parity = not (prev_parity ^ True)
     prev_parity = False
-    yield from ds_sim_send_d(i_d, i_s, parity)
-    yield from ds_sim_send_d(i_d, i_s, 1)
-    yield from ds_sim_send_d(i_d, i_s, 1)
-    yield from ds_sim_send_d(i_d, i_s, 1)
-    yield from ds_sim_send_int(i_d, i_s, code)
-
-def ds_sim_send_wrong_null(i_d, i_s, bit_time=0.5e-6):
-    global prev_parity
-    parity = not (prev_parity ^ True)
-    prev_parity = False
-    yield from ds_sim_send_d(i_d, i_s, parity, bit_time)
-    yield from ds_sim_send_d(i_d, i_s, 1, bit_time)
-    yield from ds_sim_send_d(i_d, i_s, 1, bit_time)
-    yield from ds_sim_send_d(i_d, i_s, 1, bit_time)
-    parity = not (prev_parity ^ True)
-    prev_parity = False
-    yield from ds_sim_send_d(i_d, i_s, not parity, bit_time)
-    yield from ds_sim_send_d(i_d, i_s, 1, bit_time)
-    yield from ds_sim_send_d(i_d, i_s, 0, bit_time)
-    yield from ds_sim_send_d(i_d, i_s, 0, bit_time)
+    yield from ds_sim_send_d(i_d, i_s, not parity, src_freq, bit_time)
+    yield from ds_sim_send_d(i_d, i_s, 1, src_freq, bit_time)
+    yield from ds_sim_send_d(i_d, i_s, 0, src_freq, bit_time)
+    yield from ds_sim_send_d(i_d, i_s, 0, src_freq, bit_time)
 
 def validate_symbol_received(src_freq, bit_time, s):
     # Wait for parity bit to arrive
     # Parity is in the next symbol's first two bytes and includes symbol type,
     # so wait for two bit times
-    waited = LATENCY_BIT_START_TO_SYMBOL_DETECTED
-    yield Delay(bit_time * 2)
-    for _ in range(LATENCY_BIT_START_TO_SYMBOL_DETECTED):
+    # We could be one Tick off in the detection chain, so test exact deadline +/- 1 Tick
+    waited = LATENCY_BIT_START_TO_SYMBOL_DETECTED - 1
+    yield from ds_sim_delay(2 * bit_time, src_freq)
+    for _ in range(LATENCY_BIT_START_TO_SYMBOL_DETECTED - 1):
         yield Tick()
     yield Settle()
 
-    # We could be one Tick off in the detection chain, so test one more time
     if ((yield s) == 0):
         waited = waited + 1
         yield Tick()
         yield Settle()
 
-    return bit_time * 2 + (waited - 1) * (1/src_freq)
+    if ((yield s) == 0):
+        waited = waited + 1
+        yield Tick()
+        yield Settle()
+        assert((yield s))
+
+    return bit_time * 2 + (waited) * (1/src_freq)
 
 def validate_multiple_symbol_received(src_freq, bit_time, s, num):
     total_waited = 0
     waited = 0
-    for _ in range(num):
-        yield Delay(2 * 4 * bit_time - waited)
+    for i in range(num):
+        yield from ds_sim_delay(2 * 4 * bit_time - waited, src_freq)
         waited = yield from validate_symbol_received(src_freq, bit_time, s)
         total_waited = total_waited + waited
 

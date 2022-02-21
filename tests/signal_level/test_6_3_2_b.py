@@ -7,10 +7,10 @@ from amaranth.sim import Simulator, Delay, Settle
 from amaranth_spacewire import SpWTransmitter
 from amaranth_spacewire.spw_test_utils import *
 
-SRCFREQ = 20e6
+SRCFREQ = 27e6
 # Use reset frequency to avoid managing two frequencies
 TX_FREQ = 10e6
-BIT_TIME = 1/TX_FREQ
+BIT_TIME = ds_round_bit_time(TX_FREQ, SRCFREQ)
 CHAR_TIME = BIT_TIME * 4
 
 class test632b(unittest.TestCase):
@@ -36,7 +36,7 @@ class test632b(unittest.TestCase):
             assert not (yield self.dut.o_s)
             assert (yield self.dut.o_d)
             # Then D
-            yield Delay(BIT_TIME)
+            yield from ds_sim_delay(BIT_TIME, SRCFREQ)
             assert not (yield self.dut.o_s)
             assert not (yield self.dut.o_d)
         elif not d and s:
@@ -45,7 +45,7 @@ class test632b(unittest.TestCase):
             assert not (yield self.dut.o_s)
             assert not (yield self.dut.o_d)
             # Then D
-            yield Delay(BIT_TIME)
+            yield from ds_sim_delay(BIT_TIME, SRCFREQ)
             assert not (yield self.dut.o_s)
             assert not (yield self.dut.o_d)
         elif d and not s:
@@ -54,7 +54,7 @@ class test632b(unittest.TestCase):
             assert not (yield self.dut.o_s)
             assert (yield self.dut.o_d)
             # Then D
-            yield Delay(BIT_TIME)
+            yield from ds_sim_delay(BIT_TIME, SRCFREQ)
             assert not (yield self.dut.o_s)
             assert not (yield self.dut.o_d)
         else:
@@ -63,20 +63,20 @@ class test632b(unittest.TestCase):
             assert not (yield self.dut.o_s)
             assert not (yield self.dut.o_d)
             # Then D
-            yield Delay(BIT_TIME)
+            yield from ds_sim_delay(BIT_TIME, SRCFREQ)
             assert not (yield self.dut.o_s)
             assert not (yield self.dut.o_d)
         yield self.dut.i_reset.eq(0)
 
     def loop(self):
         yield self.dut.i_reset.eq(1)
-        for _ in range(ds_sim_period_to_ticks(20e-6, SRCFREQ)):
-            yield
+        yield Tick()
+        yield from ds_sim_delay(20e-6, SRCFREQ)
         yield self.dut.i_reset.eq(0)
+        yield Tick()
         for _ in range(100):
             t = random.randint(6, 147)
-            for _ in range(ds_sim_period_to_ticks(t * 1e-6, SRCFREQ)):
-                yield
+            yield from ds_sim_delay(t * 1e-6, SRCFREQ)
             yield from self.assert_ds_order()
 
     def test_spec_6_3_2_b(self):

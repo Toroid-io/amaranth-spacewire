@@ -144,6 +144,8 @@ class DSInputCharSR(Elaboratable):
 
     Attributes
     ----------
+    i_reset : Signal(1), in
+        Reset signal
     i_input : Signal(1), in
         Bit value to store whenever ``i_store`` is asserted.
     i_store : Signal(1), in
@@ -163,6 +165,7 @@ class DSInputCharSR(Elaboratable):
     parameters="", i_attributes="", o_attributes="")
 
     def __init__(self, size):
+        self.i_reset = Signal()
         self.i_input = Signal()
         self.i_store = Signal()
         self.o_char = Signal(size)
@@ -184,7 +187,9 @@ class DSInputCharSR(Elaboratable):
             m.d.comb += parities[i + 1].eq(parities[i] ^ self.o_char[i + 4])
         m.d.comb += self.o_parity_next.eq(parities[-1])
 
-        with m.If(self.i_store == 1):
+        with m.If(self.i_reset):
+            m.d.sync += self.o_char.eq(0)
+        with m.Elif(self.i_store):
             for bit in range(size - 1):
                 m.d.sync += self.o_char[bit].eq(self.o_char[bit + 1])
             m.d.sync += self.o_char[size - 1].eq(self.i_input)

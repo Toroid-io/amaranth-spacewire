@@ -140,8 +140,10 @@ class SpWReceiver(Elaboratable):
             store_en.i_reset.eq(self.i_reset),
             store_en.i_d.eq(decoder.o_d),
             store_en.i_clk_ddr.eq(decoder.o_clk_ddr),
+            control_sr.i_reset.eq(self.i_reset),
             control_sr.i_input.eq(store_en.o_d),
             control_sr.i_store.eq(store_en.o_store_en),
+            data_sr.i_reset.eq(self.i_reset),
             data_sr.i_input.eq(store_en.o_d),
             data_sr.i_store.eq(store_en.o_store_en),
             parity_control_next.eq(control_sr.o_parity_next),
@@ -219,7 +221,7 @@ class SpWReceiver(Elaboratable):
                                         m.d.sync += [prev_got_eop.eq(1), prev_got_eep.eq(0)]
                                     with m.Else():
                                         m.d.sync += [self.o_got_eop.eq(1), prev_got_eop.eq(1), prev_got_eep.eq(0)]
-                                with m.Case("010-"):
+                                with m.Case("011-"):
                                     with m.If(prev_got_esc):
                                         m.d.sync += [self.o_escape_error.eq(1)]
                                         m.next = "ERROR"

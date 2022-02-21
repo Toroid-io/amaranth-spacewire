@@ -2,7 +2,7 @@
 import unittest
 
 from amaranth import *
-from amaranth.sim import Simulator, Delay, Settle
+from amaranth.sim import Simulator
 
 from amaranth_spacewire import SpWNode, SpWTransmitterStates, SpWNodeFSMStates
 from amaranth_spacewire.spw_test_utils import *
@@ -32,41 +32,41 @@ class test73d(unittest.TestCase):
         self.sim.add_clock(1/TX_FREQ, domain=ClockDomain("tx"))
 
     def send_nulls(self):
-        yield Delay(SIMSTART)
+        yield from ds_sim_delay(SIMSTART, SRCFREQ)
         for _ in range(5):
-            yield from ds_sim_send_null(self.dut.d_input, self.dut.s_input, BIT_TIME)
-        yield from ds_sim_send_fct(self.dut.d_input, self.dut.s_input, BIT_TIME)
+            yield from ds_sim_send_null(self.dut.d_input, self.dut.s_input, SRCFREQ, BIT_TIME)
+        yield from ds_sim_send_fct(self.dut.d_input, self.dut.s_input, SRCFREQ, BIT_TIME)
         for _ in range(100):
-            yield from ds_sim_send_null(self.dut.d_input, self.dut.s_input, BIT_TIME)
+            yield from ds_sim_send_null(self.dut.d_input, self.dut.s_input, SRCFREQ, BIT_TIME)
 
     def ticks(self):
-        yield Delay(SIMSTART)
+        yield from ds_sim_delay(SIMSTART, SRCFREQ)
         while (yield self.dut.link_state != SpWNodeFSMStates.RUN):
-            yield
+            yield Tick()
         for _ in range(50):
             for _ in range(ds_sim_period_to_ticks(10e-6, SRCFREQ)):
-                yield
+                yield Tick()
             yield self.dut.tick_input.eq(1)
-            yield
+            yield Tick()
             yield self.dut.tick_input.eq(0)
 
     def _test_time_codes(self):
         time_counter = 0
-        yield Delay(SIMSTART)
+        yield from ds_sim_delay(SIMSTART, SRCFREQ)
         for _ in range(50):
             while (yield self.dut.o_debug_tr_send_time == 0):
-                yield
+                yield Tick()
             time_counter = yield self.dut.o_debug_time_counter
             while (yield self.dut.o_debug_tr_send_time == 1):
-                yield
+                yield Tick()
             while (yield self.dut.o_debug_tr_fsm_state != SpWTransmitterStates.SEND_TIME_C):
-                yield
+                yield Tick()
             assert((yield self.dut.o_debug_tr_sr_input[:6]) == time_counter)
 
     def test_spec_7_3_d(self):
         self.sim.add_process(self.send_nulls)
-        self.sim.add_sync_process(self.ticks)
-        self.sim.add_sync_process(self._test_time_codes)
+        self.sim.add_process(self.ticks)
+        self.sim.add_process(self._test_time_codes)
 
         vcd = get_vcd_filename()
         gtkw = get_gtkw_filename()

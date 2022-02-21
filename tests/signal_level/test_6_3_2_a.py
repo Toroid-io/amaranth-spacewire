@@ -5,11 +5,11 @@ from amaranth.sim import Simulator, Delay, Settle
 from amaranth_spacewire import SpWNode, SpWNodeFSMStates
 from amaranth_spacewire.spw_test_utils import *
 
-SRCFREQ = 20e6
+SRCFREQ = 22e6
 SIMSTART = 20e-6
 # Use reset frequency to avoid managing two frequencies
 TX_FREQ = 10e6
-BIT_TIME = 1/TX_FREQ
+BIT_TIME = ds_round_bit_time(TX_FREQ, SRCFREQ)
 CHAR_TIME = BIT_TIME * 4
 
 class test632a(unittest.TestCase):
@@ -30,45 +30,45 @@ class test632a(unittest.TestCase):
         yield Settle()
 
     def ds_send_simultaneous(self):
-        yield from ds_sim_send_d(self.dut.d_input, self.dut.s_input, 0, BIT_TIME)
-        yield from ds_sim_send_d(self.dut.d_input, self.dut.s_input, 1, BIT_TIME)
-        yield from ds_sim_send_d(self.dut.d_input, self.dut.s_input, 1, BIT_TIME)
-        yield from ds_sim_send_d(self.dut.d_input, self.dut.s_input, 1, BIT_TIME)
+        yield from ds_sim_send_d(self.dut.d_input, self.dut.s_input, 0, SRCFREQ, BIT_TIME)
+        yield from ds_sim_send_d(self.dut.d_input, self.dut.s_input, 1, SRCFREQ, BIT_TIME)
+        yield from ds_sim_send_d(self.dut.d_input, self.dut.s_input, 1, SRCFREQ, BIT_TIME)
+        yield from ds_sim_send_d(self.dut.d_input, self.dut.s_input, 1, SRCFREQ, BIT_TIME)
         yield self.dut.d_input.eq(0)
         yield self.dut.s_input.eq(0)
-        yield Delay(BIT_TIME)
-        yield from ds_sim_send_d(self.dut.d_input, self.dut.s_input, 1, BIT_TIME)
-        yield from ds_sim_send_d(self.dut.d_input, self.dut.s_input, 0, BIT_TIME)
-        yield from ds_sim_send_d(self.dut.d_input, self.dut.s_input, 0, BIT_TIME)
+        yield from ds_sim_delay(BIT_TIME, SRCFREQ)
+        yield from ds_sim_send_d(self.dut.d_input, self.dut.s_input, 1, SRCFREQ, BIT_TIME)
+        yield from ds_sim_send_d(self.dut.d_input, self.dut.s_input, 0, SRCFREQ, BIT_TIME)
+        yield from ds_sim_send_d(self.dut.d_input, self.dut.s_input, 0, SRCFREQ, BIT_TIME)
 
     def ds_input(self):
         yield self.dut.s_input.eq(0)
         yield self.dut.d_input.eq(0)
-        yield Delay(SIMSTART)
-        yield from ds_sim_send_null(self.dut.d_input, self.dut.s_input, BIT_TIME)
-        yield from ds_sim_send_null(self.dut.d_input, self.dut.s_input, BIT_TIME)
+        yield from ds_sim_delay(SIMSTART, SRCFREQ)
+        yield from ds_sim_send_null(self.dut.d_input, self.dut.s_input, SRCFREQ, BIT_TIME)
+        yield from ds_sim_send_null(self.dut.d_input, self.dut.s_input, SRCFREQ, BIT_TIME)
         yield from self.ds_send_simultaneous()
-        yield from ds_sim_send_null(self.dut.d_input, self.dut.s_input, BIT_TIME)
-        yield from ds_sim_send_null(self.dut.d_input, self.dut.s_input, BIT_TIME)
-        yield from ds_sim_send_null(self.dut.d_input, self.dut.s_input, BIT_TIME)
+        yield from ds_sim_send_null(self.dut.d_input, self.dut.s_input, SRCFREQ, BIT_TIME)
+        yield from ds_sim_send_null(self.dut.d_input, self.dut.s_input, SRCFREQ, BIT_TIME)
+        yield from ds_sim_send_null(self.dut.d_input, self.dut.s_input, SRCFREQ, BIT_TIME)
         yield from self.ds_send_simultaneous()
-        yield from ds_sim_send_null(self.dut.d_input, self.dut.s_input, BIT_TIME)
-        yield from ds_sim_send_null(self.dut.d_input, self.dut.s_input, BIT_TIME)
-        yield from ds_sim_send_null(self.dut.d_input, self.dut.s_input, BIT_TIME)
+        yield from ds_sim_send_null(self.dut.d_input, self.dut.s_input, SRCFREQ, BIT_TIME)
+        yield from ds_sim_send_null(self.dut.d_input, self.dut.s_input, SRCFREQ, BIT_TIME)
+        yield from ds_sim_send_null(self.dut.d_input, self.dut.s_input, SRCFREQ, BIT_TIME)
         for _ in range(10):
-            yield from ds_sim_send_null(self.dut.d_input, self.dut.s_input, BIT_TIME)
+            yield from ds_sim_send_null(self.dut.d_input, self.dut.s_input, SRCFREQ, BIT_TIME)
 
     def _test_nulls(self):
-        yield Delay(SIMSTART)
+        yield from ds_sim_delay(SIMSTART, SRCFREQ)
         yield from validate_multiple_symbol_received(SRCFREQ, BIT_TIME, self.dut.o_debug_rx_got_null, 2)
 
     def _test_null_after_simultaneous(self):
-        yield Delay(SIMSTART)
-        yield Delay(CHAR_TIME * 10)
+        yield from ds_sim_delay(SIMSTART, SRCFREQ)
+        yield from ds_sim_delay(CHAR_TIME * 10, SRCFREQ)
         while (yield self.dut.link_state != SpWNodeFSMStates.ERROR_WAIT):
-            yield Delay(CHAR_TIME * 2)
+            yield from ds_sim_delay(CHAR_TIME * 2, SRCFREQ)
         # Give a chance to sync with first ESC
-        yield Delay(CHAR_TIME * 2)
+        yield from ds_sim_delay(CHAR_TIME * 2, SRCFREQ)
         yield from validate_symbol_received(SRCFREQ, BIT_TIME, self.dut.o_debug_rx_got_null)
 
     def test_spec_6_3_2_a(self):
