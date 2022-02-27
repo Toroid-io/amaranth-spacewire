@@ -64,13 +64,12 @@ class DSOutputCharSR(Elaboratable):
             with m.State("WAIT"):
                 with m.If(self.i_reset):
                     m.d.sync += [self.o_ready.eq(0), self.o_active.eq(0)]
-                with m.Elif(~self.i_reset & (self.i_send_control | self.i_send_data)):
+                with m.Elif(self.i_send_control | self.i_send_data):
                     m.d.sync += [
                         char_to_send.eq(self.i_input),
                         self.o_ready.eq(0),
                         counter.eq(1),
                         self.o_output.eq(parity_to_send),
-                        parity_prev.eq(0),
                         send_control.eq(self.i_send_control),
                         self.o_active.eq(1)
                     ]
@@ -78,9 +77,9 @@ class DSOutputCharSR(Elaboratable):
                 with m.Else():
                     m.d.sync += [self.o_ready.eq(1), self.o_active.eq(0)]
 
-                with m.If(self.i_send_control & ~self.i_reset):
+                with m.If(self.i_send_control):
                     m.d.sync += counter_limit.eq(4)
-                with m.Elif(self.i_send_data & ~self.i_reset):
+                with m.Else():
                     m.d.sync += counter_limit.eq(10)
             with m.State("SEND_TYPE"):
                 m.d.sync += [
@@ -96,6 +95,8 @@ class DSOutputCharSR(Elaboratable):
                 with m.Else():
                     m.next = "SEND_CONTENT"
             with m.State("SEND_CONTENT"):
+                m.d.sync += counter.eq(counter + 1)
+
                 with m.If(self.i_reset):
                     m.next = "WAIT"
                 with m.Else():
@@ -103,25 +104,13 @@ class DSOutputCharSR(Elaboratable):
                         m.d.sync += char_to_send[i].eq(char_to_send[i + 1])
                     m.d.sync += [
                         self.o_output.eq(char_to_send[0]),
-                        char_to_send[7].eq(0),
                         parity_prev.eq(parity_prev ^ char_to_send[0])
                     ]
 
                 with m.If(counter == (counter_limit - 3)):
-                    m.d.sync += [
-                        counter.eq(counter + 1),
-                        self.o_ready.eq(1)
-                    ]
+                    m.d.sync += self.o_ready.eq(1)
                 with m.Elif(counter == (counter_limit - 1)):
-                    m.d.sync += [
-                        counter.eq(0)
-                    ]
                     m.next = "WAIT"
-                with m.Else():
-                    m.d.sync += [
-                        counter.eq(counter + 1)
-                    ]
-
         return m
 
     def ports(self):
