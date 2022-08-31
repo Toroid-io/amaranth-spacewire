@@ -60,11 +60,12 @@ class DSOutputCharSR(Elaboratable):
 
         m.d.comb += parity_to_send.eq(~(parity_prev ^ self.i_send_control))
 
+        with m.If(self.i_reset):
+            m.d.sync += [self.o_ready.eq(0), self.o_active.eq(0), parity_prev.eq(0)]
+
         with m.FSM() as fsm:
             with m.State("WAIT"):
-                with m.If(self.i_reset):
-                    m.d.sync += [self.o_ready.eq(0), self.o_active.eq(0)]
-                with m.Elif(self.i_send_control | self.i_send_data):
+                with m.If(~self.i_reset & (self.i_send_control | self.i_send_data)):
                     m.d.sync += [
                         char_to_send.eq(self.i_input),
                         self.o_ready.eq(0),

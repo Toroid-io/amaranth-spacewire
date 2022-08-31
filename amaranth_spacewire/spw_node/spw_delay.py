@@ -81,6 +81,7 @@ class SpWDelay(Elaboratable):
             with m.State("DELAY"):
                 with m.If(self.i_reset == 1):
                     m.d.sync += counter.eq(0)
+                    m.d.sync += [self.o_elapsed.eq(0), self.o_half_elapsed.eq(0)]
                     m.next = "WAIT"
                 with m.Else():
                     with m.If(counter == (counter_half - 1)):
