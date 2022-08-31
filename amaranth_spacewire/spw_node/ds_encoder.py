@@ -40,33 +40,3 @@ class DSEncoder(Elaboratable):
 
     def ports(self):
         return [self.i_d, self.o_d, self.o_s]
-
-
-if __name__ == '__main__':
-    i_d_enc = Signal()
-
-    menc = Module()
-    menc.submodules.enc = enc = DSEncoder()
-    menc.d.comb += enc.i_d.eq(i_d_enc)
-
-    simenc = Simulator(menc)
-    simenc.add_clock(1e-6)
-
-    def send_data(d):
-        yield i_d_enc.eq(d)
-        yield
-
-    def process_enc():
-        yield from send_data(0)
-        yield from send_data(1)
-        yield from send_data(0)
-        yield from send_data(1)
-        yield from send_data(1)
-        yield from send_data(1)
-        yield from send_data(0)
-        yield from send_data(1)
-        yield from send_data(0)
-
-    simenc.add_sync_process(process_enc)
-    with simenc.write_vcd("vcd/ds_encoder.vcd", "gtkw/ds_encoder.gtkw", traces=enc.ports()):
-        simenc.run()

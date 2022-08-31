@@ -5,7 +5,6 @@ from .ds_shift_registers import DSInputControlCharSR, DSInputDataCharSR
 from .ds_decoder import DSDecoder
 from .ds_store_enable import DSStoreEnable
 from .spw_disconnect_detector import SpWDisconnectDetector
-from .spw_sim_utils import *
 
 
 class SpWReceiver(Elaboratable):
@@ -286,61 +285,3 @@ class SpWReceiver(Elaboratable):
             self.o_got_data, self.o_parity_error, self.o_read_error,
             self.o_escape_error, self.o_disconnect_error, self.o_got_timecode
         ]
-
-
-if __name__ == '__main__':
-    def test_receiver():
-        srcfreq = 30e6
-        i_d = Signal()
-        i_s = Signal()
-        i_reset = Signal(reset=1)
-
-        m = Module()
-        m.submodules.rv = rv = SpWReceiver(srcfreq)
-        m.d.comb += [
-            rv.i_d.eq(i_d),
-            rv.i_s.eq(i_s),
-            rv.i_reset.eq(i_reset)
-        ]
-
-        sim = Simulator(m)
-        sim.add_clock(1/srcfreq)
-
-        def decoder_test():
-            yield Delay(50e-6)
-            for _ in range(30):
-                yield from ds_sim_send_null(i_d, i_s)
-            yield from ds_sim_send_wrong_null(i_d, i_s)
-            yield from ds_sim_send_null(i_d, i_s)
-            yield from ds_sim_send_null(i_d, i_s)
-            yield from ds_sim_send_char(i_d, i_s, 'A')
-            yield from ds_sim_send_char(i_d, i_s, 'N')
-            yield from ds_sim_send_char(i_d, i_s, 'D')
-            yield from ds_sim_send_char(i_d, i_s, 'R')
-            yield from ds_sim_send_char(i_d, i_s, 'E')
-            yield from ds_sim_send_char(i_d, i_s, 'S')
-            yield from ds_sim_send_null(i_d, i_s)
-            yield from ds_sim_send_null(i_d, i_s)
-            yield from ds_sim_send_null(i_d, i_s)
-            yield from ds_sim_send_timecode(i_d, i_s, 0x30)
-            for _ in range(30):
-                yield from ds_sim_send_null(i_d, i_s)
-
-        def reset_manage():
-            for _ in range(25):
-                yield
-            yield i_reset.eq(0)
-            while True:
-                if (yield rv.o_parity_error == 1):
-                    yield i_reset.eq(1)
-                    yield
-                    yield i_reset.eq(0)
-                yield
-
-        sim.add_process(decoder_test)
-        sim.add_sync_process(reset_manage)
-        with sim.write_vcd("vcd/spw_receiver.vcd", "gtkw/spw_receiver.gtkw", traces=rv.ports()):
-            sim.run_until(2e-3)
-
-
-    test_receiver()

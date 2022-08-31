@@ -1,7 +1,6 @@
 from amaranth import *
 from amaranth.sim import Simulator
 from .spw_delay import SpWDelay
-from .spw_sim_utils import *
 
 
 class SpWDisconnectDetector(Elaboratable):
@@ -62,39 +61,3 @@ class SpWDisconnectDetector(Elaboratable):
 
     def ports(self):
         return [self.i_reset, self.i_store_en, self.o_disconnected]
-
-
-if __name__ == '__main__':
-    srcfreq = 10e6
-    i_reset = Signal()
-    i_store_en = Signal()
-
-    m = Module()
-    m.submodules.disc = disc = SpWDisconnectDetector(srcfreq)
-    m.d.comb += [
-        disc.i_reset.eq(i_reset),
-        disc.i_store_en.eq(i_store_en)
-    ]
-
-    def test():
-        yield i_reset.eq(1)
-        for _ in range(ds_sim_period_to_ticks(50e-6, srcfreq)):
-            yield
-        yield i_reset.eq(0)
-        for _ in range(ds_sim_period_to_ticks(800e-9, srcfreq)):
-            yield
-        yield i_store_en.eq(1)
-        for _ in range(ds_sim_period_to_ticks(900e-9, srcfreq)):
-            yield
-        yield i_store_en.eq(0)
-        for _ in range(ds_sim_period_to_ticks(850e-9, srcfreq)):
-            yield
-        for _ in range(100):
-            yield
-
-    sim = Simulator(m)
-    sim.add_clock(1/srcfreq)
-    sim.add_sync_process(test)
-
-    with sim.write_vcd("vcd/spw_disconnect_detector.vcd", "gtkw/spw_disconnect_detector.gtkw", traces=disc.ports()):
-        sim.run()

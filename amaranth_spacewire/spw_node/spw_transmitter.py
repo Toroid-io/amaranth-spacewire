@@ -6,7 +6,6 @@ from .ds_encoder import DSEncoder
 from .clock_divider import ClockDivider
 from .clock_mux import ClockMux
 from bitarray import bitarray
-from amaranth_boards.de0_nano import DE0NanoPlatform
 
 
 class WrongSignallingRate(Exception):
@@ -267,84 +266,3 @@ class SpWTransmitter(Elaboratable):
             self.i_send_esc, self.i_send_eop, self.i_send_eep, self.i_send_time,
             self.o_ready, self.o_d, self.o_s,
         ]
-
-if __name__ == '__main__':
-    i_char = Signal(8)
-    i_reset = Signal(reset=1)
-    i_send_char = Signal()
-    i_send_eep = Signal()
-    i_send_eop = Signal()
-    i_send_fct = Signal()
-    m = Module()
-    m.submodules.tr = tr = SpWTransmitter(1e6, 0.25e6)
-    m.d.comb += [
-        tr.i_char.eq(i_char),
-        tr.i_reset.eq(i_reset),
-        tr.i_send_char.eq(i_send_char),
-        tr.i_send_eep.eq(i_send_eep),
-        tr.i_send_eop.eq(i_send_eop),
-        tr.i_send_fct.eq(i_send_fct)
-    ]
-
-    sim = Simulator(m)
-    sim.add_clock(1e-6)
-
-    def char_to_bits(c):
-        ret = bitarray(endian='little')
-        ret.frombytes(c.encode())
-        return ret
-
-    def test():
-        for _ in range(50):
-            yield
-        yield i_reset.eq(0)
-        for _ in range(150):
-            yield
-        while (yield tr.o_ready == 1):
-            yield
-        while (yield tr.o_ready == 0):
-            yield
-        yield i_char.eq(ord('A'))
-        yield i_send_char.eq(1)
-        while (yield tr.o_ready == 1):
-            yield
-        yield i_send_char.eq(0)
-        while (yield tr.o_ready == 0):
-            yield
-        yield i_send_eep.eq(1)
-        while (yield tr.o_ready == 1):
-            yield
-        yield i_send_eep.eq(0)
-        while (yield tr.o_ready == 0):
-            yield
-        for _ in range(150):
-            yield
-
-    sim.add_sync_process(test)
-    with sim.write_vcd("vcd/spw_transmitter.vcd", "gtkw/spw_transmitter.gtkw", traces=tr.ports()):
-        sim.run()
-
-    pl = DE0NanoPlatform()
-    class TOP(Elaboratable):
-        def __init__(self, linkfreq):
-            self._linkfreq = linkfreq
-
-        def elaborate(self, pl):
-            m = Module()
-            m.submodules.tr = tr = SpWTransmitter(pl.default_clk_frequency, self._linkfreq)
-            m.d.comb += [
-                tr.i_reset.eq(0),
-                tr.i_char.eq(0),
-                tr.i_send_char.eq(0),
-                tr.i_send_fct.eq(0),
-                tr.i_send_esc.eq(0),
-                tr.i_send_eop.eq(0),
-                tr.i_send_eep.eq(0),
-                tr.i_send_time.eq(0),
-                pl.request('led', 0).eq(tr.o_d),
-                pl.request('led', 1).eq(tr.o_s),
-                pl.request('led', 2).eq(tr.o_ready)
-            ]
-            return m
-
-    DE0NanoPlatform().build(TOP(1), do_program=True)

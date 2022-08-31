@@ -52,16 +52,3 @@ class ClockDivider(Elaboratable):
             m.d.sync += counter.eq(counter + 1)
 
         return m
-
-
-if __name__ == '__main__':
-    dut = ClockDivider(1e6, 0.1e6)
-    def test():
-        for _ in range(50):
-            yield
-
-    sim = Simulator(dut)
-    sim.add_clock(1e-6)
-    sim.add_sync_process(test)
-    with sim.write_vcd("vcd/clock_divider.vcd"):
-        sim.run()

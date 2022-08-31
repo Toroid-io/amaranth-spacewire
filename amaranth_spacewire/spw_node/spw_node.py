@@ -7,7 +7,6 @@ from amaranth.sim import Simulator
 from .spw_transmitter import SpWTransmitter, SpWTransmitterStates
 from .spw_receiver import SpWReceiver
 from .spw_delay import SpWDelay
-from .spw_sim_utils import *
 from amaranth_boards.de0_nano import DE0NanoPlatform
 
 
@@ -305,63 +304,3 @@ class SpWNode(Elaboratable):
             self.w_rdy, self.switch_to_user_tx_freq, self.link_state, self.link_error_clear,
             self.link_error_flags, self.link_tx_credit, self.link_rx_credit
         ]
-
-
-if __name__ == '__main__':
-    srcfreq = 50e6
-    linkfreq = 25e6
-    i_link_disable = Signal()
-    i_autostart = Signal(reset=1)
-    i_link_start = Signal(reset=1)
-    i_tick = Signal()
-    m = Module()
-    m.submodules.fsm = fsm = SpWNode(srcfreq, linkfreq)
-    m.d.comb += [
-        fsm.link_disabled.eq(i_link_disable),
-        fsm.link_start.eq(i_link_start),
-        fsm.autostart.eq(i_autostart),
-        fsm.tick_input.eq(i_tick),
-        fsm.d_input.eq(fsm.d_output),
-        fsm.s_input.eq(fsm.s_output)
-    ]
-
-    sim = Simulator(m)
-    sim.add_clock(1/srcfreq)
-
-    def test():
-        for _ in range(ds_sim_period_to_ticks(25e-6, srcfreq)):
-            yield
-        for _ in range(ds_sim_period_to_ticks(30e-6, srcfreq)):
-            yield
-        for i in range(40):
-            yield fsm.w_en.eq(1)
-            yield fsm.w_data.eq(ord('A')+i)
-            yield
-        yield fsm.w_en.eq(0)
-        for _ in range(ds_sim_period_to_ticks(100e-6, srcfreq)):
-            yield
-
-    def tick_process():
-        for _ in range(math.ceil(500e-6/15e-6)):
-            for _ in range(ds_sim_period_to_ticks(15e-6, srcfreq)):
-                yield
-            yield i_tick.eq(1)
-            yield
-            yield i_tick.eq(0)
-            yield
-
-    def read_from_fifo():
-        for _ in range(ds_sim_period_to_ticks(400e-6, srcfreq)):
-            yield
-        while True:
-            if (yield fsm.r_rdy):
-                yield fsm.r_en.eq(1)
-            else:
-                yield fsm.r_en.eq(0)
-            yield
-
-    sim.add_sync_process(test)
-    sim.add_sync_process(read_from_fifo)
-    sim.add_sync_process(tick_process)
-    with sim.write_vcd("vcd/spw_node.vcd", "gtkw/spw_node.gtkw", traces=fsm.ports()):
-        sim.run_until(1200e-6)

@@ -100,28 +100,3 @@ class SpWDelay(Elaboratable):
 
     def ports(self):
         return [self.i_start, self.o_elapsed, self.o_half_elapsed]
-
-if __name__ == '__main__':
-    i_start = Signal()
-    m = Module()
-    m.submodules.delay = delay = SpWDelay(1.3e6, 34e-6)
-    m.d.comb += delay.i_start.eq(i_start)
-
-    sim = Simulator(m)
-    sim.add_clock(1/1.3e6)
-
-    def test():
-        for _ in range(20):
-            yield
-        yield i_start.eq(1)
-        yield
-        yield
-        yield i_start.eq(0)
-        while ((yield delay.o_elapsed) == 0):
-            yield
-        for _ in range(20):
-            yield
-
-    sim.add_sync_process(test)
-    with sim.write_vcd("vcd/spw_delay.vcd", "gtkw/spw_delay.gtkw", traces=delay.ports()):
-        sim.run()
