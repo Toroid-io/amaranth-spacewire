@@ -39,7 +39,7 @@ class SpWTransmitter(Elaboratable):
     CHAR_EOP = Const(0b00000010)
     CHAR_EEP = Const(0b00000001)
 
-    def __init__(self, srcfreq, txfreq, debug=False):
+    def __init__(self, srcfreq, rstfreq=TX_FREQ_RESET, txfreq=TX_FREQ_RESET, debug=False):
         self.i_reset = Signal()
         self.i_switch_to_user_tx_freq = Signal()
         self.i_char = Signal(8)
@@ -53,8 +53,9 @@ class SpWTransmitter(Elaboratable):
         self.o_d = Signal()
         self.o_s = Signal()
 
-        self._txfreq = txfreq
         self._srcfreq = srcfreq
+        self._rstfreq = rstfreq
+        self._txfreq = txfreq
 
         self._debug = debug
         if debug:
@@ -66,15 +67,15 @@ class SpWTransmitter(Elaboratable):
 
         if txfreq < SpWTransmitter.MIN_TX_FREQ_USER:
             raise WrongSignallingRate("Signalling rate must be at least 2 Mb/s (provided {0} Mb/s)".format(txfreq/1e6))
-        elif srcfreq < 2 * SpWTransmitter.TX_FREQ_RESET:
-            raise WrongSourceFrequency("The source frequency must be at least 2 times the reset transmit frequency. Expected > {0}, given {1}".format(2 * SpWTransmitter.TX_FREQ_RESET, srcfreq))
+        elif srcfreq < 2 * rstfreq:
+            raise WrongSourceFrequency("The source frequency must be at least 2 times the reset transmit frequency. Expected > {0}, given {1}".format(2 * SpWTransmitter.rstfreq, srcfreq))
         elif srcfreq < 2 * txfreq:
             raise WrongSourceFrequency("The source frequency must be at least 2 times the transmit frequency. Expected > {0}, given {1}".format(2 * txfreq, srcfreq))
 
     def elaborate(self, platform):
         m = Module()
 
-        m.submodules.tr_clk_reset = tr_clk_reset = ClockDivider(self._srcfreq, SpWTransmitter.TX_FREQ_RESET)
+        m.submodules.tr_clk_reset = tr_clk_reset = ClockDivider(self._srcfreq, self._rstfreq)
         m.submodules.tr_clk_user = tr_clk_user = ClockDivider(self._srcfreq, self._txfreq)
         m.submodules.tr_clk_mux = tr_clk_mux = ClockMux()
         m.domains.tx = ClockDomain("tx", local=True)

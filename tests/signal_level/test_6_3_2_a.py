@@ -14,7 +14,7 @@ CHAR_TIME = BIT_TIME * 4
 
 class test632a(unittest.TestCase):
     def setUp(self):
-        self.dut = SpWNode(srcfreq=SRCFREQ, txfreq=TX_FREQ, disconnect_delay=1, debug=True)
+        self.dut = SpWNode(srcfreq=SRCFREQ, rstfreq=TX_FREQ, txfreq=TX_FREQ, disconnect_delay=1, debug=True)
 
         self.sim = Simulator(self.dut)
         self.sim.add_clock(1/SRCFREQ)
@@ -83,3 +83,7 @@ class test632a(unittest.TestCase):
 
         with self.sim.write_vcd(vcd, gtkw, traces=self.dut.ports()):
             self.sim.run()
+
+
+if __name__ == "__main__":
+    unittest.main()

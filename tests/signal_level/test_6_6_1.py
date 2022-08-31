@@ -9,7 +9,11 @@ BIT_FREQ_MIN = 2e6
 
 class test661(unittest.TestCase):
     def test_6_6_1(self):
-        dut1 = SpWTransmitter(20e6, BIT_FREQ_MIN)
+        dut1 = SpWTransmitter(20e6, 10e6, BIT_FREQ_MIN)
 
         with self.assertRaises(WrongSignallingRate):
-            dut2 = SpWTransmitter(20e6, BIT_FREQ_MIN - 1)
+            dut2 = SpWTransmitter(20e6, 10e6, BIT_FREQ_MIN - 1)
+
+
+if __name__ == "__main__":
+    unittest.main()

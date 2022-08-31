@@ -15,7 +15,7 @@ CHAR_TIME = BIT_TIME * 4
 
 class test632b(unittest.TestCase):
     def setUp(self):
-        self.dut = SpWTransmitter(SRCFREQ, TX_FREQ, debug=True)
+        self.dut = SpWTransmitter(SRCFREQ, TX_FREQ, TX_FREQ, debug=True)
 
         self.sim = Simulator(self.dut)
         self.sim.add_clock(1/SRCFREQ)
@@ -96,3 +96,7 @@ class test632b(unittest.TestCase):
             # reset and Strobe signal MUST be reset by that time.
             assert(self.count[0] == 0)
             assert(self.count[1] == 0)
+
+
+if __name__ == "__main__":
+    unittest.main()

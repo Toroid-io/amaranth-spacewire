@@ -6,7 +6,7 @@ from amaranth_spacewire import SpWNode, SpWNodeFSMStates, SpWTransmitter, SpWRec
 from amaranth_spacewire.spw_test_utils import *
 
 SRCFREQ = 20e6
-BIT_TIME_TX_RESET = 1 / SpWTransmitter.TX_FREQ_RESET
+BIT_TIME_TX_RESET = 1 / 10e6
 CHAR_TIME_TX_RESET = 4 * BIT_TIME_TX_RESET
 BIT_FREQ_TX_USER = 4e6
 BIT_TIME_TX_USER = ds_round_bit_time(BIT_FREQ_TX_USER, SRCFREQ)
@@ -14,7 +14,7 @@ CHAR_TIME_TX_USER = 4 * BIT_TIME_TX_USER
 
 class test665ab(unittest.TestCase):
     def setUp(self):
-        self.node = SpWNode(srcfreq=SRCFREQ, txfreq=BIT_FREQ_TX_USER, debug=True)
+        self.node = SpWNode(srcfreq=SRCFREQ, rstfreq=10e6, txfreq=BIT_FREQ_TX_USER, debug=True)
         self.rx = SpWReceiver(srcfreq=SRCFREQ)
         m = Module()
         m.submodules.node = self.node
@@ -129,3 +129,7 @@ class test665ab(unittest.TestCase):
 
         with self.sim.write_vcd(vcd, gtkw, traces=self.node.ports()):
             self.sim.run()
+
+
+if __name__ == "__main__":
+    unittest.main()

@@ -17,7 +17,7 @@ class test73d(unittest.TestCase):
     def setUp(self):
 
         m = Module()
-        m.submodules.dut = self.dut = SpWNode(srcfreq=SRCFREQ, txfreq=TX_FREQ, disconnect_delay=1, debug=True, time_master=True)
+        m.submodules.dut = self.dut = SpWNode(srcfreq=SRCFREQ, rstfreq=TX_FREQ, txfreq=TX_FREQ, disconnect_delay=1, debug=True, time_master=True)
         m.d.comb += [
             self.dut.link_disabled.eq(0),
             self.dut.link_start.eq(1),
@@ -74,3 +74,7 @@ class test73d(unittest.TestCase):
 
         with self.sim.write_vcd(vcd, gtkw, traces=self.dut.ports()):
             self.sim.run()
+
+
+if __name__ == "__main__":
+    unittest.main()

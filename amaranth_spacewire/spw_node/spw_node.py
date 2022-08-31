@@ -21,7 +21,7 @@ class SpWNodeFSMStates(enum.Enum):
 
 
 class SpWNode(Elaboratable):
-    def __init__(self, srcfreq, txfreq, transission_delay=12.8e-6, disconnect_delay=850e-9, time_master=True, rx_tokens=7, tx_tokens=7, debug=False):
+    def __init__(self, srcfreq, rstfreq=SpWTransmitter.TX_FREQ_RESET, txfreq=SpWTransmitter.TX_FREQ_RESET, transission_delay=12.8e-6, disconnect_delay=850e-9, time_master=True, rx_tokens=7, tx_tokens=7, debug=False):
         # Data/Strobe
         self.d_input = Signal()
         self.s_input = Signal()
@@ -44,7 +44,9 @@ class SpWNode(Elaboratable):
 
         # Status signals
         self.link_state = Signal(SpWNodeFSMStates)
-        self.link_error = Signal()
+        self.link_error_flags = Signal(4)
+        self.link_tx_credit = Signal(range(56 + 1))
+        self.link_rx_credit = Signal(range(56 + 1))
 
         # Control signals
         self.soft_reset = Signal()
@@ -53,10 +55,10 @@ class SpWNode(Elaboratable):
         self.link_start = Signal()
         self.autostart = Signal()
         self.link_error_clear = Signal()
-        self.link_autorecover = Signal()
 
         self._srcfreq = srcfreq
         self._txfreq = txfreq
+        self._rstfreq = rstfreq
         self._transission_delay = transission_delay
         self._disconnect_delay = disconnect_delay
         self._time_master = Const(1 if time_master else 0)
@@ -76,7 +78,7 @@ class SpWNode(Elaboratable):
     def elaborate(self, platform):
         m = Module()
 
-        m.submodules.tr = tr = SpWTransmitter(self._srcfreq, self._txfreq, debug=True)
+        m.submodules.tr = tr = SpWTransmitter(self._srcfreq, self._rstfreq, self._txfreq, debug=True)
         m.submodules.rx = rx = SpWReceiver(self._srcfreq, self._disconnect_delay)
         m.submodules.delay = delay = SpWDelay(self._srcfreq, self._transission_delay, strategy='at_least')
 
@@ -134,10 +136,10 @@ class SpWNode(Elaboratable):
                     time_counter.eq(0),
                     self.time_value.eq(0),
                     self.time_flags.eq(0),
-                    time_updated.eq(0)
+                    time_updated.eq(0),
                 ]
 
-                with m.If(self.soft_reset | (self.link_error & ~self.link_autorecover)):
+                with m.If(self.soft_reset):
                     m.d.comb += delay.i_reset.eq(1)
                 with m.Elif(delay.o_half_elapsed):
                     m.d.comb += delay.i_reset.eq(1)
@@ -245,11 +247,14 @@ class SpWNode(Elaboratable):
                 with m.If(~(rx_read_counter == 7)):
                     m.d.sync += rx_tokens_count.eq(rx_tokens_count - 1)
 
-        # Link error
+        m.d.sync += self.link_tx_credit.eq(tx_credit)
+        m.d.sync += self.link_rx_credit.eq((self._rx_tokens - rx_tokens_count) * 8)
+
+        # Link error flags
         with m.If(self.soft_reset | self.link_error_clear):
-            m.d.sync += self.link_error.eq(0)
-        with m.Elif(main_fsm.ongoing(SpWNodeFSMStates.RUN) & (rx_error | tx_credit_error)):
-            m.d.sync += self.link_error.eq(1)
+            m.d.sync += self.link_error_flags.eq(0)
+        with m.Elif(main_fsm.ongoing(SpWNodeFSMStates.RUN)):
+            m.d.sync += self.link_error_flags.eq(Cat(rx.o_disconnect_error, rx.o_parity_error, rx.o_escape_error, tx_credit_error))
 
         # Time management
         with m.If(~self.soft_reset & self._time_master):
@@ -295,10 +300,10 @@ class SpWNode(Elaboratable):
         return [
             self.soft_reset, self.d_input, self.s_input, self.link_disabled,
             self.link_start, self.autostart, self.tick_input, self.tick_output,
-            self.time_flags, self.time_value, self.link_error, self.d_output,
+            self.time_flags, self.time_value, self.d_output,
             self.s_output, self.r_en, self.r_data, self.r_rdy, self.w_en, self.w_data,
             self.w_rdy, self.switch_to_user_tx_freq, self.link_state, self.link_error_clear,
-            self.link_autorecover
+            self.link_error_flags, self.link_tx_credit, self.link_rx_credit
         ]
 
 

@@ -17,7 +17,7 @@ CHAR_TIME_TX = 4 * BIT_TIME_TX
 
 class test663(unittest.TestCase):
     def setUp(self):
-        self.node = SpWNode(srcfreq=SRCFREQ, txfreq=BIT_FREQ_TX, debug=True)
+        self.node = SpWNode(srcfreq=SRCFREQ, rstfreq=10e6, txfreq=BIT_FREQ_TX, debug=True)
         self.rx = SpWReceiver(srcfreq=SRCFREQ)
         m = Module()
         m.submodules.node = self.node
@@ -77,3 +77,7 @@ class test663(unittest.TestCase):
 
         with self.sim.write_vcd(vcd, gtkw, traces=self.node.ports()):
             self.sim.run()
+
+
+if __name__ == "__main__":
+    unittest.main()

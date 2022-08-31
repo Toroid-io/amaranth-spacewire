@@ -10,6 +10,7 @@ from amaranth_spacewire.spw_test_utils import *
 SRCFREQ = 30e6
 SIMSTART = 10e-6
 TX_FREQ = 10e6
+RST_FREQ = 10e6
 BIT_TIME = ds_round_bit_time(TX_FREQ, SRCFREQ)
 CHAR_TIME = BIT_TIME * 4
 
@@ -17,7 +18,7 @@ class test73e(unittest.TestCase):
     def setUp(self):
 
         m = Module()
-        m.submodules.dut = self.dut = SpWNode(srcfreq=SRCFREQ, txfreq=TX_FREQ, debug=True, time_master=True)
+        m.submodules.dut = self.dut = SpWNode(srcfreq=SRCFREQ, rstfreq=RST_FREQ, txfreq=TX_FREQ, debug=True, time_master=True)
         m.d.comb += [
             self.dut.link_disabled.eq(0),
             self.dut.link_start.eq(1),
@@ -83,19 +84,19 @@ class test73e(unittest.TestCase):
         while (yield self.dut.link_state != SpWNodeFSMStates.ERROR_WAIT):
             yield Tick()
         yield from self.inter_error_delay()
-        yield from validate_multiple_symbol_received(SRCFREQ, BIT_TIME, self.dut.link_error, 1)
+        yield from validate_multiple_symbol_received(SRCFREQ, BIT_TIME, self.dut.link_error_flags, 1)
         yield from self.reset_link()
 
         while (yield self.dut.link_state != SpWNodeFSMStates.ERROR_WAIT):
             yield Tick()
         yield from self.inter_error_delay()
-        yield from validate_multiple_symbol_received(SRCFREQ, BIT_TIME, self.dut.link_error, 1)
+        yield from validate_multiple_symbol_received(SRCFREQ, BIT_TIME, self.dut.link_error_flags, 1)
         yield from self.reset_link()
 
         while (yield self.dut.link_state != SpWNodeFSMStates.ERROR_WAIT):
             yield Tick()
         yield from self.inter_error_delay()
-        yield from validate_multiple_symbol_received(SRCFREQ, BIT_TIME, self.dut.link_error, 1)
+        yield from validate_multiple_symbol_received(SRCFREQ, BIT_TIME, self.dut.link_error_flags, 1)
         yield from self.reset_link()
 
     def test_spec_7_3_e(self):
@@ -109,3 +110,7 @@ class test73e(unittest.TestCase):
 
         with self.sim.write_vcd(vcd, gtkw, traces=self.dut.ports()):
             self.sim.run()
+
+
+if __name__ == "__main__":
+    unittest.main()
