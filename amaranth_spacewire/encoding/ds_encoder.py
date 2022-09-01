@@ -1,6 +1,5 @@
 from amaranth import *
 from amaranth.utils import bits_for
-from amaranth.sim import Simulator, Delay
 
 
 class DSEncoder(Elaboratable):

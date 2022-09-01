@@ -1,6 +1,6 @@
 from amaranth import *
 from amaranth.sim import Simulator
-from .spw_delay import SpWDelay
+from ..misc.spw_delay import SpWDelay
 
 
 class SpWDisconnectDetector(Elaboratable):

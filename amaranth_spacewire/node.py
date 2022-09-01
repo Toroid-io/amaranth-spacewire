@@ -4,10 +4,9 @@ import math
 from amaranth import *
 from amaranth.lib.fifo import SyncFIFOBuffered
 from amaranth.sim import Simulator
-from .spw_transmitter import SpWTransmitter, SpWTransmitterStates
-from .spw_receiver import SpWReceiver
-from .spw_delay import SpWDelay
-from amaranth_boards.de0_nano import DE0NanoPlatform
+from .encoding.spw_transmitter import SpWTransmitter, SpWTransmitterStates
+from .encoding.spw_receiver import SpWReceiver
+from .misc.spw_delay import SpWDelay
 
 
 class SpWNodeFSMStates(enum.Enum):

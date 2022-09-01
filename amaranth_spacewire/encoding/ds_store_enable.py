@@ -1,5 +1,4 @@
 from amaranth import *
-from amaranth.sim import Simulator, Delay
 from .pulse_generator import PulseGenerator
 from .ds_decoder import DSDecoder
 

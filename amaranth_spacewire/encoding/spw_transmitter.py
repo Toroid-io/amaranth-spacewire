@@ -3,8 +3,8 @@ from amaranth import *
 from amaranth.sim import Simulator, Delay
 from .ds_shift_registers import DSOutputCharSR
 from .ds_encoder import DSEncoder
-from .clock_divider import ClockDivider
-from .clock_mux import ClockMux
+from ..misc.clock_divider import ClockDivider
+from ..misc.clock_mux import ClockMux
 from bitarray import bitarray
 
 
