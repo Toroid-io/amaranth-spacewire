@@ -7,8 +7,8 @@ from amaranth_spacewire import SpWTransmitter, WrongSignallingRate
 
 BIT_FREQ_MIN = 2e6
 
-class test661(unittest.TestCase):
-    def test_6_6_1(self):
+class Test(unittest.TestCase):
+    def test_5_4_10_2_a(self):
         dut1 = SpWTransmitter(20e6, 10e6, BIT_FREQ_MIN)
 
         with self.assertRaises(WrongSignallingRate):

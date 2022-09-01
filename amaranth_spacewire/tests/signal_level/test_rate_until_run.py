@@ -4,13 +4,13 @@ from amaranth import *
 from amaranth.sim import Simulator, Settle
 
 from amaranth_spacewire import SpWNode, SpWNodeFSMStates, SpWTransmitter, SpWReceiver
-from amaranth_spacewire.spw_test_utils import *
+from amaranth_spacewire.tests.spw_test_utils import *
 
 SRCFREQ = 20e6
 BIT_TIME_TX_RESET = 1 / 10e6
 BIT_FREQ_TX_USER = 4e6
 
-class test666(unittest.TestCase):
+class Test(unittest.TestCase):
     def setUp(self):
         self.node = SpWNode(srcfreq=SRCFREQ, rstfreq=10e6, txfreq=BIT_FREQ_TX_USER, debug=True)
         m = Module()
@@ -61,7 +61,7 @@ class test666(unittest.TestCase):
         yield Settle()
         assert(yield self.node.debug_tr.i_switch_to_user_tx_freq == 0)
 
-    def test_spec_666(self):
+    def test_rate_until_run(self):
         self.sim.add_process(self.send_nulls)
         self.sim.add_process(self._test)
 

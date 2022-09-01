@@ -5,7 +5,7 @@ from amaranth import *
 from amaranth.sim import Simulator, Delay, Settle
 
 from amaranth_spacewire import SpWNode, SpWTransmitterStates, SpWNodeFSMStates
-from amaranth_spacewire.spw_test_utils import *
+from amaranth_spacewire.tests.spw_test_utils import *
 
 SRCFREQ = 30e6
 SIMSTART = 10e-6
@@ -14,7 +14,7 @@ RST_FREQ = 10e6
 BIT_TIME = ds_round_bit_time(TX_FREQ, SRCFREQ)
 CHAR_TIME = BIT_TIME * 4
 
-class test73e(unittest.TestCase):
+class Test(unittest.TestCase):
     def setUp(self):
 
         m = Module()
@@ -99,7 +99,7 @@ class test73e(unittest.TestCase):
         yield from validate_multiple_symbol_received(SRCFREQ, BIT_TIME, self.dut.link_error_flags, 1)
         yield from self.reset_link()
 
-    def test_spec_7_3_e(self):
+    def test_spec_5_4_9_a(self):
         self.sim.add_process(self.ds_input)
         self.sim.add_process(self._test_nulls)
         self.sim.add_process(self._test_escape_error)

@@ -4,7 +4,7 @@ from amaranth import *
 from amaranth.sim import Simulator, Settle
 
 from amaranth_spacewire import SpWNode, SpWTransmitterStates
-from amaranth_spacewire.spw_test_utils import *
+from amaranth_spacewire.tests.spw_test_utils import *
 
 SRCFREQ = 20e6
 SIMSTART = 20e-6
@@ -12,7 +12,7 @@ TX_FREQ = 10e6
 BIT_TIME = 1/TX_FREQ
 CHAR_TIME = BIT_TIME * 4
 
-class test73b(unittest.TestCase):
+class Test(unittest.TestCase):
     def setUp(self):
         self.dut = SpWNode(srcfreq=SRCFREQ, rstfreq=TX_FREQ, txfreq=TX_FREQ, disconnect_delay=1, debug=True)
 
@@ -54,7 +54,7 @@ class test73b(unittest.TestCase):
             else:
                 yield Tick()
 
-    def test_spec_7_3_b(self):
+    def test_spec_5_4_3_3_b(self):
         self.sim.add_process(self.init)
         self.sim.add_process(self.send_nulls)
         self.sim.add_process(self.monitor_send_null)

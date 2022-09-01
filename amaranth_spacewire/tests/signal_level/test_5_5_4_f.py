@@ -3,7 +3,7 @@ import unittest
 from amaranth import *
 from amaranth.sim import Simulator, Delay, Settle
 from amaranth_spacewire import SpWNode, SpWNodeFSMStates
-from amaranth_spacewire.spw_test_utils import *
+from amaranth_spacewire.tests.spw_test_utils import *
 
 SRCFREQ = 22e6
 SIMSTART = 20e-6
@@ -12,7 +12,7 @@ TX_FREQ = 10e6
 BIT_TIME = ds_round_bit_time(TX_FREQ, SRCFREQ)
 CHAR_TIME = BIT_TIME * 4
 
-class test632a(unittest.TestCase):
+class Test(unittest.TestCase):
     def setUp(self):
         self.dut = SpWNode(srcfreq=SRCFREQ, rstfreq=TX_FREQ, txfreq=TX_FREQ, disconnect_delay=1, debug=True)
 
@@ -71,7 +71,7 @@ class test632a(unittest.TestCase):
         yield from ds_sim_delay(CHAR_TIME * 2, SRCFREQ)
         yield from validate_symbol_received(SRCFREQ, BIT_TIME, self.dut.o_debug_rx_got_null)
 
-    def test_spec_6_3_2_a(self):
+    def test_spec_5_4_4_f(self):
         self.sim.add_process(self.init)
         self.sim.add_process(self.ds_input)
         self.sim.add_process(self._test_nulls)

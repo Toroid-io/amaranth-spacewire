@@ -3,7 +3,7 @@ import unittest
 from amaranth import *
 from amaranth.sim import Simulator, Delay, Settle
 from amaranth_spacewire import SpWNode, SpWNodeFSMStates, SpWTransmitter, SpWReceiver
-from amaranth_spacewire.spw_test_utils import *
+from amaranth_spacewire.tests.spw_test_utils import *
 
 SRCFREQ = 20e6
 BIT_TIME_TX_RESET = 1 / 10e6
@@ -12,7 +12,7 @@ BIT_FREQ_TX_USER = 4e6
 BIT_TIME_TX_USER = ds_round_bit_time(BIT_FREQ_TX_USER, SRCFREQ)
 CHAR_TIME_TX_USER = 4 * BIT_TIME_TX_USER
 
-class test665ab(unittest.TestCase):
+class Test(unittest.TestCase):
     def setUp(self):
         self.node = SpWNode(srcfreq=SRCFREQ, rstfreq=10e6, txfreq=BIT_FREQ_TX_USER, debug=True)
         self.rx = SpWReceiver(srcfreq=SRCFREQ)
@@ -116,7 +116,7 @@ class test665ab(unittest.TestCase):
         yield from self.wait_user_freq_stopped()
         yield from validate_multiple_symbol_received(SRCFREQ, BIT_TIME_TX_RESET, self.rx.o_got_null, 14)
 
-    def test_spec_6_6_5_a_b(self):
+    def test_spec_5_4_10_1_a_b(self):
         self.sim.add_sync_process(self.send_nulls)
         self.sim.add_sync_process(self.change_tx_freq)
         self.sim.add_sync_process(self._test_null_detected_in_rx)

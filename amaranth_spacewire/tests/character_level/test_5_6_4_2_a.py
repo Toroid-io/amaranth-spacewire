@@ -5,7 +5,7 @@ from amaranth import *
 from amaranth.sim import Simulator
 
 from amaranth_spacewire import SpWNode, SpWTransmitterStates, SpWNodeFSMStates
-from amaranth_spacewire.spw_test_utils import *
+from amaranth_spacewire.tests.spw_test_utils import *
 
 SRCFREQ = 30e6
 SIMSTART = 20e-6
@@ -13,7 +13,7 @@ TX_FREQ = 10e6
 BIT_TIME = 1/TX_FREQ
 CHAR_TIME = BIT_TIME * 4
 
-class test73d(unittest.TestCase):
+class Test(unittest.TestCase):
     def setUp(self):
 
         m = Module()
@@ -63,7 +63,7 @@ class test73d(unittest.TestCase):
                 yield Tick()
             assert((yield self.dut.o_debug_tr_sr_input[:6]) == time_counter)
 
-    def test_spec_7_3_d(self):
+    def test_spec_5_6_4_2_a(self):
         self.sim.add_process(self.send_nulls)
         self.sim.add_process(self.ticks)
         self.sim.add_process(self._test_time_codes)

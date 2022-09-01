@@ -4,7 +4,7 @@ from amaranth import *
 from amaranth.sim import Simulator, Delay
 
 from amaranth_spacewire import SpWNode, SpWNodeFSMStates, SpWReceiver
-from amaranth_spacewire.spw_test_utils import *
+from amaranth_spacewire.tests.spw_test_utils import *
 
 SRCFREQ = 35e6
 BIT_FREQ_RX = 5e6
@@ -15,7 +15,7 @@ BIT_FREQ_TX = 10e6
 BIT_TIME_TX = ds_round_bit_time(BIT_FREQ_TX, SRCFREQ)
 CHAR_TIME_TX = 4 * BIT_TIME_TX
 
-class test663(unittest.TestCase):
+class Test(unittest.TestCase):
     def setUp(self):
         self.node = SpWNode(srcfreq=SRCFREQ, rstfreq=10e6, txfreq=BIT_FREQ_TX, debug=True)
         self.rx = SpWReceiver(srcfreq=SRCFREQ)
@@ -66,7 +66,7 @@ class test663(unittest.TestCase):
         yield from ds_sim_delay(7 * CHAR_TIME_TX - waited, SRCFREQ)
         yield from validate_multiple_symbol_received(SRCFREQ, BIT_TIME_TX, self.rx.o_got_null, 10)
 
-    def test_spec_6_6_3(self):
+    def test_spec_5_4_10_4_a(self):
         self.sim.add_process(self.send_nulls)
         self.sim.add_process(self._test_null_detected_in_node)
         self.sim.add_process(self._test_null_detected_in_rx)

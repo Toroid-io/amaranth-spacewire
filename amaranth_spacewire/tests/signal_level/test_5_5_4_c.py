@@ -5,7 +5,7 @@ import logging
 from amaranth import *
 from amaranth.sim import Simulator, Delay, Settle
 from amaranth_spacewire import SpWTransmitter
-from amaranth_spacewire.spw_test_utils import *
+from amaranth_spacewire.tests.spw_test_utils import *
 
 SRCFREQ = 27e6
 # Use reset frequency to avoid managing two frequencies
@@ -13,7 +13,7 @@ TX_FREQ = 10e6
 BIT_TIME = ds_round_bit_time(TX_FREQ, SRCFREQ)
 CHAR_TIME = BIT_TIME * 4
 
-class test632b(unittest.TestCase):
+class Test(unittest.TestCase):
     def setUp(self):
         self.dut = SpWTransmitter(SRCFREQ, TX_FREQ, TX_FREQ, debug=True)
 
@@ -79,7 +79,7 @@ class test632b(unittest.TestCase):
             yield from ds_sim_delay(t * 1e-6, SRCFREQ)
             yield from self.assert_ds_order()
 
-    def test_spec_6_3_2_b(self):
+    def test_spec_5_5_4_c(self):
         self.sim.add_sync_process(self.loop)
 
         vcd = get_vcd_filename()
