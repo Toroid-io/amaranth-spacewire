@@ -71,7 +71,8 @@ class DSOutputCharSR(Elaboratable):
                         counter.eq(1),
                         self.o_output.eq(parity_to_send),
                         send_control.eq(self.i_send_control),
-                        self.o_active.eq(1)
+                        self.o_active.eq(1),
+                        parity_prev.eq(0),
                     ]
                     m.next = "SEND_TYPE"
                 with m.Else():

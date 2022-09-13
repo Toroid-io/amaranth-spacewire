@@ -85,7 +85,8 @@ class SpWTransmitter(Elaboratable):
         parity_data = Signal()
         # One tx clock delay to hold d/s signals at reset
         encoder_reset = Signal(reset=1)
-        encoder_reset_feedback = Signal()
+        encoder_reset_feedback_1 = Signal()
+        encoder_reset_feedback_2 = Signal()
         timecode_to_send = Signal(8)
 
         m.d.comb += [
@@ -97,10 +98,10 @@ class SpWTransmitter(Elaboratable):
             self.o_s.eq(encoder.o_s)
         ]
 
-        m.d.tx += encoder_reset_feedback.eq(encoder_reset)
+        m.d.tx += [encoder_reset_feedback_1.eq(encoder_reset), encoder_reset_feedback_2.eq(encoder_reset_feedback_1)]
         with m.If(self.i_reset):
             m.d.sync += encoder_reset.eq(1)
-        with m.Elif(encoder_reset_feedback):
+        with m.Elif(encoder_reset_feedback_2):
             m.d.sync += encoder_reset.eq(0)
 
         with m.FSM() as tr_fsm:

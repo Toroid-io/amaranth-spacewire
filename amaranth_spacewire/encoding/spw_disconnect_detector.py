@@ -40,22 +40,24 @@ class SpWDisconnectDetector(Elaboratable):
         m.submodules.delay = delay = SpWDelay(self._srcfreq, self._disconnect_delay, strategy='at_most')
 
         m.d.comb += [
-            delay.i_start.eq(1),
             self.o_disconnected.eq(delay.o_elapsed)
         ]
 
         with m.FSM() as fsm:
             with m.State("INIT"):
                 with m.If(~self.i_reset & self.i_store_en):
+                    m.d.comb += delay.i_start.eq(1)
                     m.next = "RUN"
                 with m.Else():
-                    m.d.comb += delay.i_reset.eq(1)
+                    m.d.comb += delay.i_start.eq(0)
             with m.State("RUN"):
                 with m.If(self.i_reset):
+                    m.d.comb += delay.i_start.eq(0)
                     m.next = "INIT"
+                with m.Elif(self.i_store_en):
+                    m.d.comb += delay.i_start.eq(0)
                 with m.Else():
-                    m.d.comb += delay.i_reset.eq(self.i_store_en)
-                    m.next = "RUN"
+                    m.d.comb += delay.i_start.eq(1)
 
         return m
 

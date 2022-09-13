@@ -45,8 +45,6 @@ class SpWDelay(Elaboratable):
 
     Attributes
     ----------
-    i_reset : Signal(1), in
-        Reset signal.
     i_start : Signal(1), in
         Indication that the countdown should start. Once started, it is ignored
         until the delay has elapsed, or ``i_reset`` is asserted.
@@ -56,45 +54,36 @@ class SpWDelay(Elaboratable):
         Full-time elapsed indication.
     """
     def __init__(self, srcfreq, delay, strategy='at_least'):
-        self.i_reset = Signal()
         self.i_start = Signal()
         self.o_half_elapsed = Signal()
         self.o_elapsed = Signal()
-        self._ticks = _ticksForDelay(srcfreq, delay, strategy=strategy)
+        ticks = _ticksForDelay(srcfreq, delay, strategy=strategy)
         self._strategy = strategy
+
+        self._counter = Signal(bits_for(ticks))
+
+        if self._strategy == 'at_least':
+            self._counter_half = math.ceil(ticks/2)
+            self._counter_max = ticks
+        else:
+            # Count one less cycle because the user will react one cycle later
+            self._counter_half = math.floor(ticks/2) - 1
+            self._counter_max = ticks - 1
 
     def elaborate(self, platform):
         m = Module()
 
-        counter = Signal(bits_for(self._ticks))
-        if self._strategy == 'at_least':
-            counter_half = math.ceil(self._ticks/2)
-        else:
-            counter_half = math.floor(self._ticks/2)
+        with m.If(~self.i_start):
+            m.d.sync += self._counter.eq(0)
+        with m.Else():
+            m.d.sync += self._counter.eq(self._counter + 1)
 
-        with m.FSM() as fsm:
-            with m.State("WAIT"):
-                with m.If((self.i_start & ~self.i_reset) == 1):
-                    m.next = "DELAY"
-                with m.Elif(self.i_reset == 1):
-                    m.d.sync += [self.o_elapsed.eq(0), self.o_half_elapsed.eq(0)]
-            with m.State("DELAY"):
-                with m.If(self.i_reset == 1):
-                    m.d.sync += counter.eq(0)
-                    m.d.sync += [self.o_elapsed.eq(0), self.o_half_elapsed.eq(0)]
-                    m.next = "WAIT"
-                with m.Else():
-                    with m.If(counter == (counter_half - 1)):
-                        m.d.sync += self.o_half_elapsed.eq(1)
-
-                    with m.If(counter == self._ticks - 1):
-                        m.d.sync += [
-                            counter.eq(0),
-                            self.o_elapsed.eq(1)
-                        ]
-                        m.next = "WAIT"
-                    with m.Else():
-                        m.d.sync += counter.eq(counter + 1)
+        with m.If(~self.i_start):
+            m.d.sync += [self.o_elapsed.eq(0), self.o_half_elapsed.eq(0)]
+        with m.Elif(self._counter == (self._counter_half - 1)):
+            m.d.sync += self.o_half_elapsed.eq(1)
+        with m.Elif(self._counter == self._counter_max - 1):
+            m.d.sync += self.o_elapsed.eq(1)
 
         return m
 

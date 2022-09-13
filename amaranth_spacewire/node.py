@@ -1,305 +1,109 @@
-import enum
-import math
-
 from amaranth import *
-from amaranth.lib.fifo import SyncFIFOBuffered
-from amaranth.sim import Simulator
-from .encoding.spw_transmitter import SpWTransmitter, SpWTransmitterStates
-from .encoding.spw_receiver import SpWReceiver
-from .misc.spw_delay import SpWDelay
+from amaranth_spacewire.encoding.encoding_layer import EncodingLayer
+from amaranth_spacewire.encoding.transmitter import Transmitter
+from amaranth_spacewire.datalink.datalink_layer import DataLinkLayer, DataLinkState
 
 
-class SpWNodeFSMStates(enum.Enum):
-    ERROR_RESET = 0
-    ERROR_WAIT = 1
-    READY = 2
-    STARTED = 3
-    CONNECTING = 4
-    RUN = 5
-
-
-class SpWNode(Elaboratable):
-    def __init__(self, srcfreq, rstfreq=SpWTransmitter.TX_FREQ_RESET, txfreq=SpWTransmitter.TX_FREQ_RESET, transission_delay=12.8e-6, disconnect_delay=850e-9, time_master=True, rx_tokens=7, tx_tokens=7, debug=False):
+class Node(Elaboratable):
+    def __init__(self, srcfreq, rstfreq=Transmitter.TX_FREQ_RESET, txfreq=Transmitter.TX_FREQ_RESET, transission_delay=12.8e-6, disconnect_delay=850e-9):
         # Data/Strobe
-        self.d_input = Signal()
-        self.s_input = Signal()
-        self.d_output = Signal()
-        self.s_output = Signal()
-
-        # Time functions
-        self.tick_input = Signal()
-        self.tick_output = Signal()
-        self.time_flags = Signal(2)
-        self.time_value = Signal(6)
+        self.data_input = Signal()
+        self.strobe_input = Signal()
+        self.data_output = Signal()
+        self.strobe_output = Signal()
 
         # FIFO
         self.r_en = Signal()
-        self.r_data = Signal(8)
+        self.r_data = Signal(9)
         self.r_rdy = Signal()
         self.w_en = Signal()
-        self.w_data = Signal(8)
+        self.w_data = Signal(9)
         self.w_rdy = Signal()
 
         # Status signals
-        self.link_state = Signal(SpWNodeFSMStates)
+        self.link_state = Signal(DataLinkState)
         self.link_error_flags = Signal(4)
         self.link_tx_credit = Signal(range(56 + 1))
         self.link_rx_credit = Signal(range(56 + 1))
 
         # Control signals
-        self.soft_reset = Signal()
-        self.switch_to_user_tx_freq = Signal()
+        self.tx_switch_freq = Signal()
         self.link_disabled = Signal()
         self.link_start = Signal()
         self.autostart = Signal()
-        self.link_error_clear = Signal()
 
         self._srcfreq = srcfreq
         self._txfreq = txfreq
         self._rstfreq = rstfreq
         self._transission_delay = transission_delay
         self._disconnect_delay = disconnect_delay
-        self._time_master = Const(1 if time_master else 0)
-        self._rx_tokens = rx_tokens
-        self._tx_tokens = tx_tokens
-
-        self._debug = debug
-        if debug:
-            self.o_debug_rx_got_null = Signal()
-            self.o_debug_rx_got_fct = Signal()
-            self.debug_tr = None
-            self.o_debug_time_counter = Signal(6)
-            self.o_debug_tr_send_time = Signal()
-            self.o_debug_tr_fsm_state = Signal(SpWTransmitterStates)
-            self.o_debug_tr_sr_input = Signal(8)
 
     def elaborate(self, platform):
         m = Module()
 
-        m.submodules.tr = tr = SpWTransmitter(self._srcfreq, self._rstfreq, self._txfreq, debug=True)
-        m.submodules.rx = rx = SpWReceiver(self._srcfreq, self._disconnect_delay)
-        m.submodules.delay = delay = SpWDelay(self._srcfreq, self._transission_delay, strategy='at_least')
-
-        use_user_tx_freq = Signal()
-        tr_pre_send = Signal()
-        rx_error = Signal()
-        rx_tokens_count = Signal(range(self._rx_tokens + 1), reset=self._rx_tokens)
-        rx_read_counter = Signal(range(8))
-        tx_credit = Signal(range(8 * self._tx_tokens + 1))
-        tx_credit_error = Signal()
-        read_in_progress = Signal()
-        gotNULL = Signal()
-        sentNULL = Signal()
-        time_counter = Signal(6)
-        time_updated = Signal()
-        link_enabled = Signal()
+        m.submodules.encoding_layer = encoding_layer = EncodingLayer(self._srcfreq, self._rstfreq, self._txfreq, self._disconnect_delay)
+        m.submodules.datalink_layer = datalink_layer = DataLinkLayer(self._srcfreq, self._transission_delay)
 
         m.d.comb += [
-            self.d_output.eq(tr.o_d),
-            self.s_output.eq(tr.o_s),
-            rx.i_d.eq(self.d_input),
-            rx.i_s.eq(self.s_input),
-            rx_error.eq(rx.o_escape_error | rx.o_parity_error | rx.o_read_error | rx.o_disconnect_error),
-            link_enabled.eq(~self.link_disabled & (self.link_start | (self.autostart & gotNULL))),
-            tr.i_switch_to_user_tx_freq.eq(use_user_tx_freq)
+            encoding_layer.tx_enable.eq(datalink_layer.tx_enable),
+            encoding_layer.tx_char.eq(datalink_layer.tx_char),
+            encoding_layer.send.eq(datalink_layer.tx_send),
+            encoding_layer.send_fct.eq(datalink_layer.send_fct),
+            encoding_layer.rx_enable.eq(datalink_layer.rx_enable),
+            encoding_layer.data_input.eq(self.data_input),
+            encoding_layer.strobe_input.eq(self.strobe_input),
+            encoding_layer.tx_switch_freq.eq(self.tx_switch_freq),
+
+            datalink_layer.r_en.eq(self.r_en),
+            datalink_layer.got_null.eq(encoding_layer.got_null),
+            datalink_layer.got_fct.eq(encoding_layer.got_fct),
+            datalink_layer.got_bc.eq(encoding_layer.got_bc),
+            datalink_layer.rx_char.eq(encoding_layer.rx_char),
+            datalink_layer.got_n_char.eq(encoding_layer.got_n_char),
+            datalink_layer.parity_error.eq(encoding_layer.parity_error),
+            datalink_layer.receive_error.eq(encoding_layer.read_error | encoding_layer.escape_error),
+            datalink_layer.disconnect_error.eq(encoding_layer.disconnect_error),
+            datalink_layer.link_disabled.eq(self.link_disabled),
+            datalink_layer.link_start.eq(self.link_start),
+            datalink_layer.autostart.eq(self.autostart),
+            datalink_layer.sent_n_char.eq(encoding_layer.sent_n_char),
+            datalink_layer.sent_fct.eq(encoding_layer.sent_fct),
+            datalink_layer.sent_null.eq(encoding_layer.sent_null),
+            datalink_layer.tx_ready.eq(encoding_layer.tx_ready),
+            datalink_layer.w_en.eq(self.w_en),
+            datalink_layer.w_data.eq(self.w_data),
+
+            self.w_rdy.eq(datalink_layer.w_rdy),
+            self.link_state.eq(datalink_layer.link_state),
+            self.link_error_flags.eq(datalink_layer.link_error_flags),
+            self.link_tx_credit.eq(datalink_layer.link_tx_credit),
+            self.link_rx_credit.eq(datalink_layer.link_rx_credit),
+            self.data_output.eq(encoding_layer.data_output),
+            self.strobe_output.eq(encoding_layer.strobe_output),
+            self.r_data.eq(datalink_layer.r_data),
+            self.r_rdy.eq(datalink_layer.r_rdy),
         ]
-
-        m.submodules.rx_fifo = rx_fifo = SyncFIFOBuffered(width=8, depth=8 * self._rx_tokens)
-        m.submodules.tx_fifo = tx_fifo = SyncFIFOBuffered(width=8, depth=8 * self._tx_tokens)
-
-        m.d.comb += [
-            rx_fifo.r_en.eq(self.r_en),
-            self.r_data.eq(rx_fifo.r_data),
-            self.r_rdy.eq(rx_fifo.r_rdy),
-            rx_fifo.w_data.eq(rx.o_data_char),
-
-            tx_fifo.w_en.eq(self.w_en),
-            tx_fifo.w_data.eq(self.w_data),
-            self.w_rdy.eq(tx_fifo.w_rdy),
-
-            read_in_progress.eq(self.r_en & rx_fifo.r_rdy)
-        ]
-
-        with m.FSM() as main_fsm:
-            with m.State(SpWNodeFSMStates.ERROR_RESET):
-                m.d.comb += rx.i_reset.eq(1)
-                m.d.comb += tr.i_reset.eq(1)
-                m.d.sync += [
-                    rx_tokens_count.eq(self._rx_tokens),
-                    rx_read_counter.eq(0),
-                    tx_credit.eq(0),
-                    tx_credit_error.eq(0),
-                    gotNULL.eq(0),
-                    sentNULL.eq(0),
-                    time_counter.eq(0),
-                    self.time_value.eq(0),
-                    self.time_flags.eq(0),
-                    time_updated.eq(0),
-                ]
-
-                with m.If(self.soft_reset):
-                    m.d.comb += delay.i_reset.eq(1)
-                with m.Elif(delay.o_half_elapsed):
-                    m.d.comb += delay.i_reset.eq(1)
-                    m.next = SpWNodeFSMStates.ERROR_WAIT
-                with m.Else():
-                    m.d.comb += delay.i_start.eq(1)
-            with m.State(SpWNodeFSMStates.ERROR_WAIT):
-                m.d.comb += rx.i_reset.eq(0)
-                m.d.comb += tr.i_reset.eq(1)
-
-                with m.If(self.soft_reset | rx_error | (gotNULL & (rx.o_got_fct | rx.o_got_data | rx.o_got_timecode))):
-                    m.d.comb += delay.i_reset.eq(1)
-                    m.next = SpWNodeFSMStates.ERROR_RESET
-                with m.Elif(delay.o_elapsed == 1):
-                    m.d.comb += delay.i_reset.eq(1)
-                    m.next = SpWNodeFSMStates.READY
-                with m.Elif(rx.o_got_null):
-                    m.d.sync += gotNULL.eq(1)
-                with m.Else():
-                    m.d.comb += delay.i_start.eq(1)
-            with m.State(SpWNodeFSMStates.READY):
-                m.d.comb += rx.i_reset.eq(0)
-                m.d.comb += tr.i_reset.eq(1)
-
-                with m.If(self.soft_reset | rx_error | (gotNULL & (rx.o_got_fct | rx.o_got_data | rx.o_got_timecode))):
-                    m.d.comb += delay.i_reset.eq(1)
-                    m.next = SpWNodeFSMStates.ERROR_RESET
-                with m.Elif(link_enabled == 1):
-                    m.next = SpWNodeFSMStates.STARTED
-                with m.Elif(rx.o_got_null):
-                    m.d.sync += gotNULL.eq(1)
-            with m.State(SpWNodeFSMStates.STARTED):
-                m.d.comb += rx.i_reset.eq(0)
-                m.d.comb += tr.i_reset.eq(0)
-                m.d.sync += sentNULL.eq(tr.o_ready | sentNULL)
-
-                with m.If(self.soft_reset | rx_error | (gotNULL & (rx.o_got_fct | rx.o_got_data | rx.o_got_timecode)) | delay.o_elapsed):
-                    m.d.comb += delay.i_reset.eq(1)
-                    m.next = SpWNodeFSMStates.ERROR_RESET
-                with m.Elif(gotNULL | rx.o_got_null):
-                    m.d.sync += gotNULL.eq(1)
-                    m.d.comb += delay.i_reset.eq(1)
-                    m.next = SpWNodeFSMStates.CONNECTING
-                with m.Else():
-                    m.d.comb += delay.i_start.eq(1)
-            with m.State(SpWNodeFSMStates.CONNECTING):
-                m.d.comb += rx.i_reset.eq(0)
-                m.d.comb += tr.i_reset.eq(0)
-                m.d.comb += tr.i_send_fct.eq((rx_tokens_count > 0) & (tr.o_ready == 1) & sentNULL)
-                m.d.sync += sentNULL.eq(tr.o_ready | sentNULL)
-
-                with m.If(self.soft_reset | rx_error | rx.o_got_data | rx.o_got_timecode | delay.o_elapsed):
-                    m.d.comb += delay.i_reset.eq(1)
-                    m.next = SpWNodeFSMStates.ERROR_RESET
-                with m.Elif(rx.o_got_fct == 1):
-                    m.d.sync += tx_credit.eq(tx_credit + 8)
-                    m.d.comb += delay.i_reset.eq(1)
-                    m.next = SpWNodeFSMStates.RUN
-                with m.Else():
-                    m.d.comb += delay.i_start.eq(1)
-            with m.State(SpWNodeFSMStates.RUN):
-                m.d.comb += rx.i_reset.eq(0)
-                m.d.comb += tr.i_reset.eq(0)
-                m.d.comb += tr_pre_send.eq((tx_fifo.level > 0) & tr.o_ready & (tx_credit > 0) & tx_fifo.r_rdy)
-
-                with m.If(self.soft_reset | rx_error | tx_credit_error | self.link_disabled):
-                    m.d.comb += delay.i_reset.eq(1)
-                    m.next = SpWNodeFSMStates.ERROR_RESET
-                with m.Else():
-                    m.d.comb += rx_fifo.w_en.eq(rx.o_got_data)
-                    with m.If(time_updated & tr.o_ready):
-                        m.d.comb += [
-                            tr.i_send_time.eq(1),
-                            tr.i_char.eq(Cat(time_counter, Const(0, 2)))
-                        ]
-                    with m.Elif((rx_tokens_count > 0) & (tr.o_ready == 1)):
-                        m.d.comb += tr.i_send_fct.eq(1)
-                    with m.Else():
-                        m.d.comb += [
-                            tx_fifo.r_en.eq(tr_pre_send),
-                            tr.i_char.eq(tx_fifo.r_data),
-                            tr.i_send_char.eq(tr_pre_send),
-                        ]
-
-        # Tokens and credit management
-        with m.If(main_fsm.ongoing(SpWNodeFSMStates.CONNECTING) | main_fsm.ongoing(SpWNodeFSMStates.RUN)):
-            with m.If(tr.i_send_char & ~rx.o_got_fct):
-                m.d.sync += tx_credit.eq(tx_credit - 1)
-            with m.Elif(rx.o_got_fct & (tx_credit > (8 * self._tx_tokens - 8))):
-                m.d.sync += tx_credit_error.eq(1)
-            with m.Elif(rx.o_got_fct & ~tr.i_send_char):
-                m.d.sync += tx_credit.eq(tx_credit + 8)
-            with m.Elif(rx.o_got_fct & tr.i_send_char):
-                m.d.sync += tx_credit.eq(tx_credit + 7)
-
-            with m.If(read_in_progress):
-                m.d.sync += rx_read_counter.eq(rx_read_counter + 1)
-
-            with m.If(read_in_progress & ~tr.i_send_fct):
-                with m.If(rx_read_counter == 7):
-                    m.d.sync += rx_tokens_count.eq(rx_tokens_count + 1)
-            with m.Elif(~read_in_progress & tr.i_send_fct):
-                m.d.sync += rx_tokens_count.eq(rx_tokens_count - 1)
-            with m.If(read_in_progress & tr.i_send_fct):
-                with m.If(~(rx_read_counter == 7)):
-                    m.d.sync += rx_tokens_count.eq(rx_tokens_count - 1)
-
-        m.d.sync += self.link_tx_credit.eq(tx_credit)
-        m.d.sync += self.link_rx_credit.eq((self._rx_tokens - rx_tokens_count) * 8)
-
-        # Link error flags
-        with m.If(self.soft_reset | self.link_error_clear):
-            m.d.sync += self.link_error_flags.eq(0)
-        with m.Elif(main_fsm.ongoing(SpWNodeFSMStates.RUN)):
-            m.d.sync += self.link_error_flags.eq(Cat(rx.o_disconnect_error, rx.o_parity_error, rx.o_escape_error, tx_credit_error))
-
-        # Time management
-        with m.If(~self.soft_reset & self._time_master):
-            with m.If(self.tick_input):
-                m.d.sync += [time_counter.eq(time_counter + 1), time_updated.eq(1)]
-            with m.Elif(tr.i_send_time):
-                m.d.sync += time_updated.eq(0)
-        with m.Elif(~self.soft_reset):
-            with m.If(rx.o_got_timecode):
-                with m.If(rx.o_data_char[0:6] == (time_counter + 1)):
-                    # Output tick + store flags + store counter
-                    m.d.comb += self.tick_output.eq(1)
-                    m.d.sync += [
-                        self.time_value.eq(time_counter + 1),
-                        self.time_flags.eq(rx.o_data_char[6:8]),
-                        time_counter.eq(time_counter + 1)
-                    ]
-                with m.Elif(rx.o_data_char[0:6] != time_counter):
-                    m.d.sync += time_counter.eq(rx.o_data_char[0:6])
-
-        # User TX Frequency management
-        with m.If(main_fsm.ongoing(SpWNodeFSMStates.RUN) & self.switch_to_user_tx_freq & tr.o_ready):
-            m.d.sync += use_user_tx_freq.eq(1)
-        with m.Elif(~main_fsm.ongoing(SpWNodeFSMStates.RUN) | ~self.switch_to_user_tx_freq & tr.o_ready):
-            m.d.sync += use_user_tx_freq.eq(0)
-
-        m.d.comb += self.link_state.eq(main_fsm.state)
-
-        if self._debug:
-            m.d.comb += [
-                self.o_debug_rx_got_null.eq(rx.o_got_null),
-                self.o_debug_rx_got_fct.eq(rx.o_got_fct),
-                self.o_debug_time_counter.eq(time_counter),
-                self.o_debug_tr_send_time.eq(tr.i_send_time),
-                self.o_debug_tr_fsm_state.eq(tr.o_debug_fsm_state),
-                self.o_debug_tr_sr_input.eq(tr.o_debug_sr_input)
-            ]
-            self.debug_tr = tr
 
         return m
 
     def ports(self):
         return [
-            self.soft_reset, self.d_input, self.s_input, self.link_disabled,
-            self.link_start, self.autostart, self.tick_input, self.tick_output,
-            self.time_flags, self.time_value, self.d_output,
-            self.s_output, self.r_en, self.r_data, self.r_rdy, self.w_en, self.w_data,
-            self.w_rdy, self.switch_to_user_tx_freq, self.link_state, self.link_error_clear,
-            self.link_error_flags, self.link_tx_credit, self.link_rx_credit
+            self.data_input,
+            self.strobe_input,
+            self.data_output,
+            self.strobe_output,
+            self.r_en,
+            self.r_data,
+            self.r_rdy,
+            self.w_en,
+            self.w_data,
+            self.w_rdy,
+            self.link_state,
+            self.link_error_flags,
+            self.link_tx_credit,
+            self.link_rx_credit,
+            self.tx_switch_freq,
+            self.link_disabled,
+            self.link_start,
+            self.autostart,
         ]

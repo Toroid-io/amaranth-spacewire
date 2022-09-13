@@ -68,6 +68,14 @@ def ds_sim_period_to_ticks(p, srcfreq):
 def ds_sim_delay(p, srcfreq):
     for _ in range(ds_sim_period_to_ticks(p, srcfreq)):
         yield Tick()
+    yield Settle()
+
+def ds_sim_tick_tx(srcfreq, txfreq):
+    yield from ds_sim_delay(1/txfreq, srcfreq)
+
+def ds_sim_ticks_tx(ticks, srcfreq, txfreq):
+    for _ in range(ticks):
+        yield from ds_sim_tick_tx(srcfreq, txfreq)
 
 def ds_round_bit_time(bit_freq_in, src_freq):
     return ds_sim_period_to_ticks(1/bit_freq_in, src_freq) / src_freq
