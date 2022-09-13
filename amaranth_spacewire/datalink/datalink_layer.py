@@ -198,30 +198,21 @@ class DataLinkLayer(Elaboratable):
             self.sent_fct,
             self.sent_n_char,
             self.sent_null,
-
             self.rx_enable,
             self.rx_char,
-
             self.tx_enable,
             self.tx_char,
             self.tx_ready,
-
-            # Signals for the Network layer
-            # RX FIFO
             self.r_en,
             self.r_data,
             self.r_rdy,
-            # TX FIFO
             self.w_en,
             self.w_data,
             self.w_rdy,
-
-            # Signals for the MIB
             self.link_state,
             self.link_error_flags,
             self.link_tx_credit,
             self.link_rx_credit,
-
             self.link_disabled,
             self.link_start,
             self.autostart,

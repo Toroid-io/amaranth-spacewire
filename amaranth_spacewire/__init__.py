@@ -1,5 +1,5 @@
-from .node import SpWNode, SpWNodeFSMStates
-from .encoding.spw_receiver import SpWReceiver
-from .encoding.spw_transmitter import SpWTransmitter, SpWTransmitterStates, WrongSignallingRate, WrongSourceFrequency
+from amaranth_spacewire.node import Node
+from amaranth_spacewire.datalink import *
+from amaranth_spacewire.encoding import *
 
-__all__ = ["SpWNode", "SpWNodeFSMStates", "SpWTransmitter", "SpWReceiver"]
+__all__ = ["Node", "DataLinkState", "Transmitter", "Receiver"]

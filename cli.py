@@ -2,7 +2,7 @@ import argparse
 import warnings
 from amaranth import cli
 
-from amaranth_spacewire import SpWNode
+from amaranth_spacewire import Node
 
 def main():
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -35,7 +35,7 @@ def main():
 
     args = parser.parse_args()
 
-    spw_node = SpWNode(int(float(args.src_freq)), int(float(args.reset_freq)), int(float(args.user_freq)), time_master=args.time_master, rx_tokens=args.rx_tokens, tx_tokens=args.tx_tokens, debug=False)
+    spw_node = Node(int(float(args.src_freq)), int(float(args.reset_freq)), int(float(args.user_freq)))
 
     ports = spw_node.ports()
 
