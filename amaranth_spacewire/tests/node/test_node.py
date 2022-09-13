@@ -102,6 +102,10 @@ class Test(unittest.TestCase):
 
         yield from ds_sim_delay(50e-6, SRCFREQ)
 
+        yield self.node_1.r_en.eq(1)
+        yield from ds_sim_delay(50e-6, SRCFREQ)
+        yield self.node_1.r_en.eq(0)
+
     def test_node(self):
         self.sim.add_process(self.stimuli)
 
