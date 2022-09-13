@@ -2,6 +2,7 @@ import math
 import os
 import inspect
 
+from amaranth import *
 from amaranth.sim import Delay, Settle, Tick
 from bitarray import bitarray
 from bitarray.util import int2ba
@@ -56,6 +57,22 @@ global prev_parity
 prev_d = False
 prev_s = False
 prev_parity = False
+
+class Gate(Elaboratable):
+    def __init__(self, i, o, trigger):
+        self.o = o
+        self.i = i
+        self.trigger = trigger
+
+    def elaborate(self, platform):
+        m = Module()
+
+        with m.If(self.trigger):
+            m.d.comb += self.o.eq(self.i)
+        with m.Else():
+            m.d.comb += self.o.eq(0)
+
+        return m
 
 def ds_sim_char_to_bits(c):
     ret = bitarray(endian='little')

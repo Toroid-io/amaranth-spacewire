@@ -17,7 +17,8 @@ class DataLinkLayer(Elaboratable):
         self.got_fct = Signal()
         self.got_n_char = Signal()
         self.got_bc = Signal()
-        self.receive_error = Signal()
+        # TODO doc this error
+        self.read_error = Signal()
         self.disconnect_error = Signal()
         self.parity_error = Signal()
         self.esc_error = Signal()
@@ -89,8 +90,11 @@ class DataLinkLayer(Elaboratable):
             fsm.got_null.eq(self.got_null),
             fsm.sent_null.eq(self.sent_null),
             fsm.got_bc.eq(self.got_bc),
-            fsm.receive_error.eq(self.receive_error),
+            fsm.read_error.eq(self.read_error),
             fsm.credit_error.eq(fcm.credit_error),
+            fsm.disconnect_error.eq(self.disconnect_error),
+            fsm.parity_error.eq(self.parity_error),
+            fsm.esc_error.eq(self.esc_error),
             fsm.link_disabled.eq(self.link_disabled),
             fsm.link_start.eq(self.link_start),
             fsm.autostart.eq(self.autostart),

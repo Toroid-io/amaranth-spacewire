@@ -26,7 +26,10 @@ class DataLinkFSM(Elaboratable):
         self.got_null = Signal()
         self.sent_null = Signal()
         self.got_bc = Signal()
-        self.receive_error = Signal()
+        self.read_error = Signal()
+        self.disconnect_error = Signal()
+        self.parity_error = Signal()
+        self.esc_error = Signal()
         self.credit_error = Signal()
         self.link_state = Signal(DataLinkState)
 
@@ -92,8 +95,10 @@ class DataLinkFSM(Elaboratable):
                     m.d.comb += delay.i_start.eq(1)
 
             with m.State(DataLinkState.ERROR_WAIT):
-                with m.If(self.link_disabled | self.receive_error | gotFCT |
-                        self.got_n_char | self.got_bc):
+                with m.If(self.disconnect_error | self.parity_error
+                          | self.esc_error | gotFCT
+                          | self.got_n_char | self.got_bc
+                          | self.link_disabled | self.read_error):
                     m.d.comb += delay.i_start.eq(0)
                     m.next = DataLinkState.ERROR_RESET
                 with m.Elif(delay.o_elapsed == 1):
@@ -103,16 +108,21 @@ class DataLinkFSM(Elaboratable):
                     m.d.comb += delay.i_start.eq(1)
 
             with m.State(DataLinkState.READY):
-                with m.If(self.link_disabled | self.receive_error | gotFCT |
-                        self.got_n_char | self.got_bc):
+                with m.If(self.disconnect_error | self.parity_error
+                          | self.esc_error | gotFCT
+                          | self.got_n_char | self.got_bc
+                          | self.link_disabled | self.read_error):
                     m.d.comb += delay.i_start.eq(0)
                     m.next = DataLinkState.ERROR_RESET
                 with m.Elif(self.link_start | (self.autostart & gotNULL)):
                     m.next = DataLinkState.STARTED
 
             with m.State(DataLinkState.STARTED):
-                with m.If(self.link_disabled | self.receive_error | gotFCT |
-                        self.got_n_char | self.got_bc | delay.o_elapsed):
+                with m.If(self.disconnect_error | self.parity_error
+                          | self.esc_error | gotFCT
+                          | self.got_n_char | self.got_bc
+                          | self.link_disabled | self.read_error
+                          | delay.o_elapsed):
                     m.d.comb += delay.i_start.eq(0)
                     m.next = DataLinkState.ERROR_RESET
                 with m.Elif(gotNULL & sentNULL):
@@ -122,8 +132,10 @@ class DataLinkFSM(Elaboratable):
                     m.d.comb += delay.i_start.eq(1)
 
             with m.State(DataLinkState.CONNECTING):
-                with m.If(self.link_disabled | self.receive_error | self.got_n_char |
-                        self.got_bc | delay.o_elapsed):
+                with m.If(self.disconnect_error | self.parity_error
+                          | self.esc_error | self.got_n_char
+                          | self.got_bc | self.link_disabled
+                          | self.read_error | delay.o_elapsed):
                     m.d.comb += delay.i_start.eq(0)
                     m.next = DataLinkState.ERROR_RESET
                 with m.Elif(gotFCT & sentFCT):
@@ -133,7 +145,9 @@ class DataLinkFSM(Elaboratable):
                     m.d.comb += delay.i_start.eq(1)
 
             with m.State(DataLinkState.RUN):
-                with m.If(self.link_disabled | self.receive_error | self.credit_error):
+                with m.If(self.disconnect_error | self.parity_error
+                          | self.esc_error | self.credit_error
+                          | self.link_disabled | self.read_error):
                     m.d.comb += delay.i_start.eq(0)
                     m.next = DataLinkState.ERROR_RESET
         
@@ -148,7 +162,7 @@ class DataLinkFSM(Elaboratable):
             self.got_n_char,
             self.got_null,
             self.got_bc,
-            self.receive_error,
+            self.read_error,
             self.credit_error,
             self.sent_null,
             self.link_state,

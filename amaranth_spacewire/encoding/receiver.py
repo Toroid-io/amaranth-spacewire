@@ -63,7 +63,7 @@ class Receiver(Elaboratable):
         self.got_n_char = Signal()
         self.parity_error = Signal()
         self.read_error = Signal()
-        self.escape_error = Signal()
+        self.esc_error = Signal()
         self.disconnect_error = Signal()
 
         self._srcfreq = srcfreq
@@ -128,7 +128,7 @@ class Receiver(Elaboratable):
                 self.char.eq(0),
                 self.parity_error.eq(0),
                 self.read_error.eq(0),
-                self.escape_error.eq(0)
+                self.esc_error.eq(0)
             ]
 
         m.submodules += FFSynchronizer(self.data, decoder.i_d, reset=0)
@@ -212,21 +212,21 @@ class Receiver(Elaboratable):
                                         m.d.sync += [self.got_fct.eq(1), prev_got_eop.eq(0), prev_got_eep.eq(0)]
                                 with m.Case("101-"):
                                     with m.If(prev_got_esc):
-                                        m.d.sync += [self.escape_error.eq(1)]
+                                        m.d.sync += [self.esc_error.eq(1)]
                                         m.next = "ERROR"
                                     with m.Else():
                                         m.d.sync += [self.got_n_char.eq(1), prev_got_eop.eq(1), prev_got_eep.eq(0)]
                                         m.d.sync += self.char.eq(CHAR_EOP)
                                 with m.Case("011-"):
                                     with m.If(prev_got_esc):
-                                        m.d.sync += [self.escape_error.eq(1)]
+                                        m.d.sync += [self.esc_error.eq(1)]
                                         m.next = "ERROR"
                                     with m.Else():
                                         m.d.sync += [self.got_n_char.eq(1), prev_got_eep.eq(1), prev_got_eop.eq(0)]
                                         m.d.sync += self.char.eq(CHAR_EEP)
                                 with m.Case("111-"):
                                     with m.If(prev_got_esc):
-                                        m.d.sync += [self.escape_error.eq(1)]
+                                        m.d.sync += [self.esc_error.eq(1)]
                                         m.next = "ERROR"
                                     with m.Else():
                                         m.d.sync += [self.got_esc.eq(1), prev_got_esc.eq(1), prev_got_eep.eq(0), prev_got_eop.eq(0)]
@@ -279,5 +279,5 @@ class Receiver(Elaboratable):
             self.data, self.strobe, self.enable, self.got_fct,
             self.got_esc, self.got_null, self.char,
             self.got_n_char, self.parity_error, self.read_error,
-            self.escape_error, self.disconnect_error, self.got_bc
+            self.esc_error, self.disconnect_error, self.got_bc
         ]

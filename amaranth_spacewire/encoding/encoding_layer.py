@@ -30,7 +30,7 @@ class EncodingLayer(Elaboratable):
         self.got_n_char = Signal()
         self.parity_error = Signal()
         self.read_error = Signal()
-        self.escape_error = Signal()
+        self.esc_error = Signal()
         self.disconnect_error = Signal()
         
         # Signals for the Physical Layer
@@ -73,7 +73,7 @@ class EncodingLayer(Elaboratable):
             self.got_n_char.eq(rx.got_n_char),
             self.parity_error.eq(rx.parity_error),
             self.read_error.eq(rx.read_error),
-            self.escape_error.eq(rx.escape_error),
+            self.esc_error.eq(rx.esc_error),
             self.disconnect_error.eq(rx.disconnect_error),
             self.data_output.eq(tx.data),
             self.strobe_output.eq(tx.strobe),
@@ -104,7 +104,7 @@ class EncodingLayer(Elaboratable):
             self.got_n_char,
             self.parity_error,
             self.read_error,
-            self.escape_error,
+            self.esc_error,
             self.disconnect_error,
             self.data_output,
             self.strobe_output,
