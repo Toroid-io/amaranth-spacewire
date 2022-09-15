@@ -67,8 +67,6 @@ class DataLinkLayer(Elaboratable):
         self._rx_tokens = 7
         self._tx_tokens = 7
 
-        recovery_state = Signal(RecoveryState)
-        recovery_error = Signal(5)
         rx_fifo_w_rdy = Signal()
         tx_fifo_r_en = Signal()
         tx_fifo_r_rdy = Signal()
@@ -126,9 +124,6 @@ class DataLinkLayer(Elaboratable):
 
             rec_fsm.tx_fifo_r_data_in.eq(tx_fifo.r_data),
             tx_fifo_r_data.eq(rec_fsm.tx_fifo_r_data_out),
-            
-            recovery_state.eq(rec_fsm.recovery_state),
-            recovery_error.eq(rec_fsm.recovery_error),
 
             #######################################################
             # Flow Control Manager

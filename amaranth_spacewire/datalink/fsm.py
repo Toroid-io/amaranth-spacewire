@@ -34,7 +34,6 @@ class DataLinkFSM(Elaboratable):
         self.link_state = Signal(DataLinkState)
 
         ## Ports: Signals for the MIB
-        self.link_error_flags = Signal(4)
         self.link_disabled = Signal()
         self.link_start = Signal()
         self.autostart = Signal()

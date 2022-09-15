@@ -34,7 +34,6 @@ class RecoveryFSM(Elaboratable):
         self.tx_fifo_r_data_in = Signal(9)
         self.tx_fifo_r_data_out = Signal(9)
 
-        self.recovery_state = Signal(RecoveryState)
         self.recovery_error = Signal(5)
 
     def elaborate(self, platform):
@@ -60,8 +59,6 @@ class RecoveryFSM(Elaboratable):
                 with m.If(self.rx_fifo_w_rdy_in):
                     m.next = RecoveryState.NORMAL
 
-        m.d.comb += self.recovery_state.eq(recovery_fsm.state)
-        
         # TX FIFO r_* management
         with m.If(recovery_fsm.ongoing(RecoveryState.RECOVERY_DISCARD_TX)):
             # The data char is the previously read
@@ -125,6 +122,5 @@ class RecoveryFSM(Elaboratable):
             self.tx_fifo_r_data_in,
             self.tx_fifo_r_data_out,
 
-            self.recovery_state,
             self.recovery_error,
         ]

@@ -28,7 +28,8 @@ class FlowControlManager(Elaboratable):
         rx_tokens = Signal(range(FlowControlManager.MAX_CREDIT//8 + 1), reset=7)
         
         # Credit error
-        with m.If(self.link_state == DataLinkState.ERROR_RESET):
+        with m.If(~(self.link_state == DataLinkState.RUN)
+                  | self.credit_error):
             m.d.sync += self.credit_error.eq(0)
         with m.Elif(self.got_fct & (self.tx_credit == FlowControlManager.MAX_CREDIT)):
             m.d.sync += self.credit_error.eq(1)
@@ -40,7 +41,7 @@ class FlowControlManager(Elaboratable):
             m.d.sync += self.credit_error.eq(1)
 
         # TX Credit
-        with m.If((self.link_state == DataLinkState.ERROR_RESET)
+        with m.If((~(self.link_state == DataLinkState.CONNECTING) & ~(self.link_state == DataLinkState.RUN))
                   | self.credit_error):
             m.d.sync += self.tx_credit.eq(0)
         with m.Elif(self.got_fct & self.sent_n_char):
@@ -51,7 +52,7 @@ class FlowControlManager(Elaboratable):
             m.d.sync += self.tx_credit.eq(self.tx_credit - 1)
 
         # RX Credit
-        with m.If((self.link_state == DataLinkState.ERROR_RESET)
+        with m.If((~(self.link_state == DataLinkState.CONNECTING) & ~(self.link_state == DataLinkState.RUN))
                   | self.credit_error):
             m.d.sync += self.rx_credit.eq(0)
         with m.Elif(self.sent_fct & self.got_n_char):
@@ -67,7 +68,7 @@ class FlowControlManager(Elaboratable):
             m.d.comb += self.send_fct.eq(1)
 
         # RX tokens
-        with m.If((self.link_state == DataLinkState.ERROR_RESET)
+        with m.If((~(self.link_state == DataLinkState.CONNECTING) & ~(self.link_state == DataLinkState.RUN))
                   | self.credit_error):
             m.d.comb += rx_tokens.eq(0)
         with m.Else():

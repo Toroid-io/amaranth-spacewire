@@ -22,7 +22,7 @@ class Node(Elaboratable):
 
         # Status signals
         self.link_state = Signal(DataLinkState)
-        self.link_error_flags = Signal(4)
+        self.link_error_flags = Signal(5)
         self.link_tx_credit = Signal(range(56 + 1))
         self.link_rx_credit = Signal(range(56 + 1))
 

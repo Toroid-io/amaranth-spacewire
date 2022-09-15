@@ -15,27 +15,19 @@ def main():
             default=50e6,
             help="Clock frequency")
 
-    parser.add_argument("--user-freq",
+    parser.add_argument("--tx-freq",
             default=10e6,
-            help="Link user frequency")
+            help="Link transmit frequency")
 
     parser.add_argument("--reset-freq",
             default=10e6,
             help="Link reset frequency")
 
-    parser.add_argument("--rx-tokens",
-            type=int, default=7,
-            help="Number of RX tokens (fifo size / 8)")
-
-    parser.add_argument("--tx-tokens",
-            type=int, default=7,
-            help="Number of TX tokens (fifo size / 8)")
-
     cli.main_parser(parser)
 
     args = parser.parse_args()
 
-    spw_node = Node(int(float(args.src_freq)), int(float(args.reset_freq)), int(float(args.user_freq)))
+    spw_node = Node(int(float(args.src_freq)), int(float(args.reset_freq)), int(float(args.tx_freq)))
 
     ports = spw_node.ports()
 

@@ -3,18 +3,18 @@ import unittest
 from amaranth import *
 from amaranth.sim import Simulator, Settle
 
-from amaranth_spacewire import Node, Transmitter
+from amaranth_spacewire import Node, Transmitter, DataLinkState
 from amaranth_spacewire.misc.constants import *
 from amaranth_spacewire.tests.spw_test_utils import *
 
-SRCFREQ = 40e6
-TXFREQ = Transmitter.TX_FREQ_RESET * 2
+SRCFREQ = 54e6
+TXFREQ = Transmitter.TX_FREQ_RESET
 
 
 def add_nodes(test):
     m = Module()
-    m.submodules.node_1 = test.node_1 = Node(SRCFREQ, txfreq=TXFREQ)
-    m.submodules.node_2 = test.node_2 = Node(SRCFREQ, txfreq=TXFREQ)
+    m.submodules.node_1 = test.node_1 = Node(SRCFREQ, rstfreq=TXFREQ, txfreq=TXFREQ)
+    m.submodules.node_2 = test.node_2 = Node(SRCFREQ, rstfreq=TXFREQ, txfreq=TXFREQ)
     test.gate_trigger = Signal()
     m.submodules.node_1_d_i_gate = test.gate = Gate(test.node_2.data_output, test.node_1.data_input, test.gate_trigger)
 
@@ -111,6 +111,46 @@ class Test(unittest.TestCase):
 
         vcd = get_vcd_filename("init")
         gtkw = get_gtkw_filename("init")
+        create_sim_output_dirs(vcd, gtkw)
+
+        with self.sim.write_vcd(vcd, gtkw, traces=self.node_1.ports() + self.node_2.ports()):
+            self.sim.run()
+
+
+class Test(unittest.TestCase):
+    def setUp(self):
+        add_nodes(self)
+
+    def stimuli(self):
+        yield self.gate_trigger.eq(1)
+
+        yield self.node_1.link_disabled.eq(1)
+        yield self.node_2.link_disabled.eq(1)
+        yield from ds_sim_delay(20e-6, SRCFREQ)
+        yield self.node_1.link_disabled.eq(0)
+        yield self.node_1.link_start.eq(1)
+        yield self.node_2.link_disabled.eq(0)
+        yield self.node_2.link_start.eq(1)
+
+        yield from ds_sim_delay(50e-6, SRCFREQ)
+
+        for _ in range(100):
+            while ((yield self.node_1.link_state != DataLinkState.RUN)
+                    and (yield self.node_2.link_state != DataLinkState.RUN)):
+                yield Tick()
+                yield Settle()
+
+            yield self.gate_trigger.eq(0)
+
+            yield from ds_sim_delay(20e-6, SRCFREQ)
+
+            yield self.gate_trigger.eq(1)
+
+    def test_node(self):
+        self.sim.add_process(self.stimuli)
+
+        vcd = get_vcd_filename("token_limit")
+        gtkw = get_gtkw_filename("token_limit")
         create_sim_output_dirs(vcd, gtkw)
 
         with self.sim.write_vcd(vcd, gtkw, traces=self.node_1.ports() + self.node_2.ports()):
