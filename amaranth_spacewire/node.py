@@ -2,10 +2,16 @@ from amaranth import *
 from amaranth_spacewire.encoding.encoding_layer import EncodingLayer
 from amaranth_spacewire.encoding.transmitter import Transmitter
 from amaranth_spacewire.datalink.datalink_layer import DataLinkLayer, DataLinkState
+from amaranth_spacewire.misc.constants import MAX_TX_CREDIT, MAX_RX_CREDIT
 
 
 class Node(Elaboratable):
-    def __init__(self, srcfreq, rstfreq=Transmitter.TX_FREQ_RESET, txfreq=Transmitter.TX_FREQ_RESET, transission_delay=12.8e-6, disconnect_delay=850e-9):
+    def __init__(self, srcfreq,
+                       rstfreq=Transmitter.TX_FREQ_RESET,
+                       txfreq=Transmitter.TX_FREQ_RESET,
+                       transission_delay=12.8e-6,
+                       disconnect_delay=850e-9,
+                       fifo_depth_tokens=7):
         # Data/Strobe
         self.data_input = Signal()
         self.strobe_input = Signal()
@@ -23,8 +29,8 @@ class Node(Elaboratable):
         # Status signals
         self.link_state = Signal(DataLinkState)
         self.link_error_flags = Signal(5)
-        self.link_tx_credit = Signal(range(56 + 1))
-        self.link_rx_credit = Signal(range(56 + 1))
+        self.link_tx_credit = Signal(range(MAX_TX_CREDIT + 1))
+        self.link_rx_credit = Signal(range(MAX_RX_CREDIT(fifo_depth_tokens) + 1))
 
         # Control signals
         self.tx_switch_freq = Signal()
@@ -37,12 +43,13 @@ class Node(Elaboratable):
         self._rstfreq = rstfreq
         self._transission_delay = transission_delay
         self._disconnect_delay = disconnect_delay
+        self._fifo_depth_tokens = fifo_depth_tokens
 
     def elaborate(self, platform):
         m = Module()
 
         m.submodules.encoding_layer = encoding_layer = EncodingLayer(self._srcfreq, self._rstfreq, self._txfreq, self._disconnect_delay)
-        m.submodules.datalink_layer = datalink_layer = DataLinkLayer(self._srcfreq, self._transission_delay)
+        m.submodules.datalink_layer = datalink_layer = DataLinkLayer(srcfreq=self._srcfreq, transission_delay=self._transission_delay, fifo_depth_tokens=self._fifo_depth_tokens)
 
         m.d.comb += [
             encoding_layer.tx_enable.eq(datalink_layer.tx_enable),

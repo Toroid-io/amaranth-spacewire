@@ -1,16 +1,17 @@
 from amaranth import *
 from amaranth.lib.fifo import SyncFIFOBuffered
 
-from amaranth_spacewire.datalink.fsm import DataLinkFSM, DataLinkState
+from amaranth_spacewire.datalink.fsm import DataLinkFSM
+from amaranth_spacewire.misc.states import DataLinkState
 from amaranth_spacewire.datalink.recovery_fsm import RecoveryFSM, RecoveryState
 from amaranth_spacewire.datalink.flow_control_manager import FlowControlManager
-from amaranth_spacewire.misc.constants import CHAR_EEP, CHAR_EOP, CHAR_FCT
+from amaranth_spacewire.misc.constants import CHAR_EEP, CHAR_EOP, CHAR_FCT, MAX_TX_CREDIT
 
 
 class DataLinkLayer(Elaboratable):
-    def __init__(self,
-                 srcfreq,
-                 transission_delay=12.8e-6):
+    def __init__(self, srcfreq,
+                       transission_delay=12.8e-6,
+                       fifo_depth_tokens=7):
 
         # Signals for Encoding layer
         self.got_null = Signal()
@@ -49,8 +50,8 @@ class DataLinkLayer(Elaboratable):
         # Signals for the MIB
         self.link_state = Signal(DataLinkState)
         self.link_error_flags = Signal(5)
-        self.link_tx_credit = Signal(range(56 + 1))
-        self.link_rx_credit = Signal(range(56 + 1))
+        self.link_tx_credit = Signal(range(MAX_TX_CREDIT + 1))
+        self.link_rx_credit = Signal(range(8 * fifo_depth_tokens + 1))
 
         self.link_disabled = Signal()
         self.link_start = Signal()
@@ -59,24 +60,21 @@ class DataLinkLayer(Elaboratable):
         # Internals
         self._srcfreq = srcfreq
         self._transission_delay = transission_delay
+        self._fifo_depth_tokens = fifo_depth_tokens
 
     def elaborate(self, platform):
         m = Module()
         
-        # TODO remove or argument
-        self._rx_tokens = 7
-        self._tx_tokens = 7
-
         rx_fifo_w_rdy = Signal()
         tx_fifo_r_en = Signal()
         tx_fifo_r_rdy = Signal()
         tx_fifo_r_data = Signal(9)
 
-        m.submodules.rx_fifo = rx_fifo = SyncFIFOBuffered(width=9, depth=8 * self._rx_tokens)
-        m.submodules.tx_fifo = tx_fifo = SyncFIFOBuffered(width=9, depth=8 * self._tx_tokens)
+        m.submodules.rx_fifo = rx_fifo = SyncFIFOBuffered(width=9, depth=8 * self._fifo_depth_tokens)
+        m.submodules.tx_fifo = tx_fifo = SyncFIFOBuffered(width=9, depth=8 * self._fifo_depth_tokens)
         m.submodules.fsm = fsm = DataLinkFSM(self._srcfreq, self._transission_delay)
         m.submodules.rec_fsm = rec_fsm = RecoveryFSM()
-        m.submodules.flow_control_manager = fcm = FlowControlManager()
+        m.submodules.flow_control_manager = fcm = FlowControlManager(fifo_depth_tokens=self._fifo_depth_tokens)
 
         m.d.comb += [
             #######################################################
@@ -96,6 +94,7 @@ class DataLinkLayer(Elaboratable):
             fsm.link_disabled.eq(self.link_disabled),
             fsm.link_start.eq(self.link_start),
             fsm.autostart.eq(self.autostart),
+            fsm.recovery_state.eq(rec_fsm.recovery_state),
             
             #######################################################
             # Recovery FSM
@@ -125,6 +124,12 @@ class DataLinkLayer(Elaboratable):
             rec_fsm.tx_fifo_r_data_in.eq(tx_fifo.r_data),
             tx_fifo_r_data.eq(rec_fsm.tx_fifo_r_data_out),
 
+            rec_fsm.tx_fifo_w_rdy_in.eq(tx_fifo.w_rdy),
+            self.w_rdy.eq(rec_fsm.tx_fifo_w_rdy_out),
+
+            rec_fsm.tx_fifo_w_en_in.eq(self.w_en),
+            tx_fifo.w_en.eq(rec_fsm.tx_fifo_w_en_out),
+
             #######################################################
             # Flow Control Manager
             #######################################################
@@ -137,7 +142,7 @@ class DataLinkLayer(Elaboratable):
             self.link_tx_credit.eq(fcm.tx_credit),
             self.link_rx_credit.eq(fcm.rx_credit),
             fcm.tx_ready.eq(self.tx_ready),
-            fcm.rx_fifo_r_level.eq(rx_fifo.r_level),
+            fcm.rx_fifo_level.eq(rx_fifo.level),
 
             #######################################################
             # FIFOs
@@ -146,8 +151,6 @@ class DataLinkLayer(Elaboratable):
             self.r_rdy.eq(rx_fifo.r_rdy),
             self.r_data.eq(rx_fifo.r_data),
 
-            tx_fifo.w_en.eq(self.w_en),
-            self.w_rdy.eq(tx_fifo.w_rdy),
             tx_fifo.w_data.eq(self.w_data),
 
             #######################################################

@@ -2,15 +2,7 @@ import enum
 
 from amaranth import *
 from amaranth_spacewire.misc.spw_delay import SpWDelay
-
-
-class DataLinkState(enum.Enum):
-    ERROR_RESET = 0
-    ERROR_WAIT = 1
-    READY = 2
-    STARTED = 3
-    CONNECTING = 4
-    RUN = 5
+from amaranth_spacewire.misc.states import DataLinkState, RecoveryState
 
 
 class DataLinkFSM(Elaboratable):
@@ -32,6 +24,7 @@ class DataLinkFSM(Elaboratable):
         self.esc_error = Signal()
         self.credit_error = Signal()
         self.link_state = Signal(DataLinkState)
+        self.recovery_state = Signal(RecoveryState)
 
         ## Ports: Signals for the MIB
         self.link_disabled = Signal()
@@ -85,7 +78,7 @@ class DataLinkFSM(Elaboratable):
 
         with m.FSM() as datalink_fsm:
             with m.State(DataLinkState.ERROR_RESET):
-                with m.If(self.link_disabled):
+                with m.If(self.link_disabled | (self.recovery_state != RecoveryState.NORMAL)):
                     m.d.comb += delay.i_start.eq(0)
                 with m.Elif(delay.o_half_elapsed):
                     m.d.comb += delay.i_start.eq(0)

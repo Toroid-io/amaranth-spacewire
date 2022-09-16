@@ -5,6 +5,7 @@ from amaranth_spacewire.encoding.ds_encoder import DSEncoder
 from amaranth_spacewire.misc.clock_divider import ClockDivider
 from amaranth_spacewire.misc.clock_mux import ClockMux
 from amaranth_spacewire.misc.constants import CHAR_ESC, CHAR_FCT, CHAR_EOP, CHAR_EEP
+from amaranth_spacewire.misc.states import TransmitterState
 
 
 class WrongSignallingRate(Exception):
@@ -15,15 +16,6 @@ class WrongSignallingRate(Exception):
 class WrongSourceFrequency(Exception):
     def __init__(self, message):
         self.message = message
-
-
-class TransmitterState(enum.Enum):
-    WAIT                    = 0
-    WAIT_TX_START_DATA      = 1
-    WAIT_TX_START_CONTROL   = 2
-    SEND_NULL_A             = 4
-    SEND_NULL_B             = 5
-    SEND_NULL_C             = 6
 
 
 class Transmitter(Elaboratable):
