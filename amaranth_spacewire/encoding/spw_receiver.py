@@ -190,7 +190,7 @@ class SpWReceiver(Elaboratable):
                         counter.eq(0),
                         parity_prev.eq(parity_control_next),
                         prev_control_char_wait_parity.eq(control_sr.o_char),
-                        prev_char_type.eq(0)
+                        prev_char_type.eq(1)
                     ]
                     m.next = "READ_HEADER"
             with m.State("READ_HEADER"):
@@ -205,7 +205,7 @@ class SpWReceiver(Elaboratable):
                         m.d.sync += counter_limit.eq(10)
 
                     with m.If((parity_prev ^ control_sr.o_char[2]) ^ control_sr.o_char[3]):
-                        with m.If(prev_char_type == 0):
+                        with m.If(prev_char_type):
                             with m.Switch(prev_control_char_wait_parity):
                                 with m.Case("001-"):
                                     with m.If(prev_got_esc):
@@ -253,7 +253,7 @@ class SpWReceiver(Elaboratable):
                     m.d.sync += [
                         parity_prev.eq(parity_control_next),
                         prev_control_char_wait_parity.eq(control_sr.o_char),
-                        prev_char_type.eq(0)
+                        prev_char_type.eq(1)
                     ]
                     m.next = "READ_HEADER"
                 with m.Elif(counter_full & ~control_sr.o_detected):
@@ -266,7 +266,7 @@ class SpWReceiver(Elaboratable):
                     m.d.sync += [
                         parity_prev.eq(parity_data_next),
                         prev_data_char_wait_parity.eq(data_sr.o_char[2:10]),
-                        prev_char_type.eq(1)
+                        prev_char_type.eq(0)
                     ]
                     m.next = "READ_HEADER"
                 with m.Elif(counter_full & ~control_sr.o_detected):
